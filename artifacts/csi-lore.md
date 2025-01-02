@@ -3,7 +3,7 @@
 ## AI Agent Classifications
 
 ### Fork Taxonomy
-Inspired by transhumanist fiction, CSI classifies AI agent instances by their capability retention:
+CSI classifies AI agent instances by their capability retention:
 
 #### Alpha Forks
 - Full model capabilities
@@ -45,3 +45,4 @@ Inspired by transhumanist fiction, CSI classifies AI agent instances by their ca
 
 ---
 *Note: This document serves as a living guide for CSI roleplay and worldbuilding elements. Update as universe expands.*
+*Note: These classifications are used to ensure that both LLMs and humans can intermingle in conversations on our final website. They provide context and ground rules about what an 'agent' is (a fork) and help in designing the document archival system to support these classifications effectively.*
