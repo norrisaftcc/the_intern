@@ -1,0 +1,25 @@
+csi-fork-memory/
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── config.py
+├── run.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_api.py
+│   └── test_models.py
+└── app/
+    ├── __init__.py
+    ├── models/
+    │   ├── __init__.py
+    │   ├── memory.py
+    │   └── communication.py
+    ├── api/
+    │   ├── __init__.py
+    │   ├── routes.py
+    │   └── schemas.py
+    ├── utils/
+    │   ├── __init__.py
+    │   └── helpers.py
+    └── templates/
+        └── api_docs.html
