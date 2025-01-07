@@ -1,0 +1,96 @@
+suno_country1.txt
+
+**Summary of known facts:**  
+- The original lyrics are rap-style, referencing GitHub, sign-ups, repos, commits, and collaboration.  
+- We need to rewrite them in a **country and western** style, maintaining a similar structure (Hook, Verse 1, Verse 2, etc.).  
+- We’ll keep the essence but shift the language and imagery to evoke a country feel.  
+- Finally, we’ll provide a short list of style descriptors in parentheses, separated by commas.
+
+---
+
+## Country & Western Version
+
+**[Hook: Gentle guitar picking, warm vocals – easy-going rhythm]**  
+GitHub’s our frontier, where dreams come alive  
+Sign in, saddle up, let that repo thrive  
+(Repo thrivin’… thrivin’… thrivin’…)
+
+---
+
+**[Verse 1: Unhurried, storytelling tone]**  
+I moseyed on in, typed GitHub in my bar  
+Clicked “Sign Up” real easy, reachin’ out so far  
+Wrote my name, my pass, my email down  
+Had to prove I’m not a bot in this code-lovin’ town  
+Checked my mail for a note, said “Welcome aboard!”  
+Now I’m ready to ride, code is my reward  
+Picked my own settings, made ‘em fit just right  
+In this brand-new corral, my repos shine at night  
+
+**[Mid-verse pickup]**  
+Up top’s a plus sign, “New Repository” calls  
+I’ll name it plain, so folks can heed its drawl  
+Could open it wide so the whole wide world can see  
+Or keep it under wraps, just between code and me  
+Drop a README in there, set the stage, tell my tale  
+Maybe toss in a license so the rules don’t fail  
+I click “Create” with pride, see that project stand  
+Got my boots in the dust, building dreams on this land  
+
+---
+
+**[Slower, reflective]**  
+Now… I can upload new files or craft ‘em right here  
+Drag ‘em in or type away, my path is clear  
+Down at these crossroads, my code rests up high  
+Each commit’s a footstep, under that big prairie sky  
+
+---
+
+**[Hook]**  
+GitHub’s our frontier, where dreams come alive  
+Sign in, saddle up, let that repo thrive  
+(Repo thrivin’… thrivin’… thrivin’…)
+
+---
+
+**[Verse 2: Steady, conversational pace]**  
+Got GitHub Desktop loaded, ready for the ride  
+Sign back in, keep my code workin’ side by side  
+Clone that repo down: “File” > “Clone,” well alright  
+My local stable’s filled with code, ropin’ it in tight  
+
+**[Mid-verse burst]**  
+I open that folder, line by line, watch it beam  
+Commit to main, push it up, part of the team  
+One button, one push, and the dream’s in the air  
+Cowboyin’ this code with folks everywhere  
+
+---
+
+**[Slow, heavy emphasis]**  
+Yes… we… build… with a big ol’ honest heart  
+Sharin’ knowledge across these plains is a mighty fine start  
+GitHub’s our station, we all ride that track  
+Projects rollin’ onward, never lookin’ back  
+
+**[Building speed]**  
+From sign-up to repos, from push to success  
+Four simple steps, no need to stress  
+No matter how grand the plan, the proof’s in the code  
+Your story’s right there, ready to lighten your load  
+
+---
+
+**[Hook]**  
+GitHub’s our frontier, where dreams come alive  
+Sign in, saddle up, let that repo thrive  
+(Repo thrivin’… thrivin’… thrivin’…)
+
+---
+
+**[Outro: Soft guitar fade]**  
+
+---
+
+*(country, western, melodic, acoustic, storytelling, easy-going, frontier, reflective)*
