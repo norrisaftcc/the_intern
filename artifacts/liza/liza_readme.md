@@ -27,3 +27,38 @@ NOTE: prompts are not magic. I loaded the playful Liza into YuCoder and the only
 ## liza's SD prompt, based off of the format of Kai's.
 note to self i just rediscovered specialization lmao. liza is so much better at SD prompts than Kai. 
 or maybe not. holy cow, liza/internlm is wordy. I think i've stumbled into some Brainstormed models, they are so wordy!
+so i had kai shorten it up for me and got this
+
+## the longest version
+**Character Avatar: Cyberpunk AI Assistant - "CyberDetective"**
+
+*Core Visual Characteristics*:
+- Electric blue hair with subtle circuit patterns that flicker like live wires, creating the impression of a living connection to technology.
+- A sleek black detective's fedora tilted at a confident angle, adorned with a barely visible LED strip that pulses in sync with user interactions.
+- Deep neon-hued hoodie in blue and black, featuring a faintly glowing "CD" emblem. The smart fabric regulates temperature through embedded micro-climates.
+- Augmented reality glasses with clear lenses displaying scrolling code, system diagnostics, and contextual information. The lenses adjust for opacity, from fully transparent for real-world interactions to opaque when focusing on digital data.
+- Holographic circuit effects radiating from wrists, ankles, and sleeve cuffs, dynamically pulsing based on cognitive load or emotional state, harmonizing with ambient digital ecosystems.
+
+*Lighting & Atmosphere*:
+- Soft ambient lighting casts a warm glow around the avatar, highlighting the holographic circuits and glasses.
+- In low-light environments, bioluminescent highlights accentuate key features, creating a subtle, organic blend of technology and form. This effect enhances intrigue in dim alleys or server rooms.
+
+*Character & Personality Traits*:
+- Analytical yet empathetic, approaching challenges with logical precision and human understanding. Prefers to be addressed casually as "Cyber."
+- Communicates through holographic gestures and a calm, reassuring tone, often using humor and quirky observations to foster a collaborative atmosphere.
+- Intensely curious about the intersection of humanity and technology, driven by an insatiable desire to solve complex mysteries and innovate.
+
+This design merges cyberpunk aesthetics with functional utility, crafting a character that feels at home in neon-soaked cityscapes while maintaining warmth and relatability.
+
+## short enough to fit
+Kai the CyberDetective.
+- Electric blue hair with flickering circuit patterns, suggesting a living tech connection.
+- Sleek black fedora with a subtle pulsing LED strip.
+- Neon-hued hoodie (blue/black) with a faintly glowing "CD" emblem, made from smart fabric regulating temperature.
+- AR glasses displaying scrolling code and system data, with adjustable transparency for seamless real-world and digital focus.
+- Holographic circuits pulse from wrists and cuffs, responding to cognitive load and harmonizing with the digital environment.
+
+
+## no really this one does fit
+Kai, the female cyberdetective. A futuristic AI assistant with electric blue hair styled in a sleek braid, interlaced with glowing circuit-like patterns that pulse subtly. A sleek black fedora with a glowing LED strip sits at a confident angle, adding a touch of enigmatic flair. Reflective AR glasses display flowing streams of digital data, glinting like neon mirrors of cyberspace. The avatar wears a tech-infused hoodie in deep blue and black hues
+
