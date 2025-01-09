@@ -92,6 +92,39 @@ Each step should include:
 - Success criteria defined
 - Regular updates maintained
 
+## Getting Started
+
+To set up the project environment, follow these steps:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/norrisaftcc/the_intern.git
+   cd the_intern
+   ```
+
+2. **Set up a virtual environment**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Set up environment variables**:
+   - Create a `.env` file in the root directory of the project.
+   - Add any necessary environment variables as specified in the project documentation.
+
+5. **Run the Flask application**:
+   ```bash
+   flask run
+   ```
+
+6. **Access the application**:
+   - Open your web browser and go to `http://127.0.0.1:5000` to access the project interface.
+
 ---
 
 *Note: This template serves as a foundation for CSI educational content. Modify sections as needed while maintaining the core investigation theme and technical accuracy.*
