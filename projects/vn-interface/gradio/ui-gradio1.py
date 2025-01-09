@@ -2,6 +2,8 @@ import gradio as gr
 
 # Function to generate a greeting based on the slider value
 def generate_greeting(intensity):
+    # Ensure the intensity value is an integer
+    intensity = int(intensity)
     # TODO: make these more interesting and dynamic, from bored student to excited puppy
     greetings = [
         "hi..",
@@ -22,7 +24,7 @@ def generate_greeting(intensity):
 
 # Gradio interface with a slider and a button
 with gr.Blocks() as demo:
-    slider = gr.Slider(0, 10, label="Greeting Intensity")
+    slider = gr.Slider(0, 10, step=1, label="Greeting Intensity")
     button = gr.Button("Hello")
     output = gr.Textbox()
 
