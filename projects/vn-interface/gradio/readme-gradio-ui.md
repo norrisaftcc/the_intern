@@ -53,3 +53,7 @@ When you run the app and adjust the slider, you will see greetings of variable i
 - Slider at 9: "wow, hihihihi!!!"
 
 Enjoy experimenting with the greeting intensities!
+
+### Note
+
+The Gradio app now generates dynamic greetings based on the slider value, ranging from "hi.." to "wow, hihihihi!!!". The greetings are more interesting and dynamic, making the app more engaging.
