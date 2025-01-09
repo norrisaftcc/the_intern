@@ -12,13 +12,17 @@ def generate_greeting(intensity):
         "hihihi..",
         "hihihihi...",
         "hihihihi..",
-        "wow, hihihihi!!!"
+        "wow, hihihihi!!!",
+        "wow, hihihihihi!!!",
+        "wow, hihihihihihi!!!"
     ]
+    # Clamp the intensity value to the valid range
+    intensity = max(0, min(intensity, len(greetings) - 1))
     return greetings[intensity]
 
 # Gradio interface with a slider and a button
 with gr.Blocks() as demo:
-    slider = gr.Slider(0, 9, label="Greeting Intensity")
+    slider = gr.Slider(0, 10, label="Greeting Intensity")
     button = gr.Button("Hello")
     output = gr.Textbox()
 
