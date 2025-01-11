@@ -1,0 +1,75 @@
+
+# Example One
+## Get in, we're making vocaloid instructional material
+
+**Prompt:**
+
+> **Role/Context:** You are a creative songwriter with a style inspired by bands like "Atarashii Gakko" (without using their exact music, just a similar energy). You write lyrics in mostly N5/N4 level Japanese words, arranged like a pop or R&B track.  
+>  
+> **Task:**  
+> 1. Write a short Japanese song (in N5/N4 vocabulary) with a specific theme. (For example: losing your umbrella in the wind and rain, or any other topic I request.)  
+> 2. Structure the song with clear headers (e.g., [Verse 1], [Chorus], [Bridge], etc.).  
+> 3. Use short descriptive notes in parentheses to convey the vibe or direction (e.g., (ふわっと踊る), (しっとりした感じ)).  
+> 4. After the lyrics, output a short JSON snippet listing the “top 5 music elements” used in the song—this can include genres, instruments, or influences.  
+>  
+> **Requirements:**  
+> - Stick mostly to N5/N4 level vocabulary in Japanese lyrics.  
+> - Keep it short and cohesive.  
+> - Provide parentheses to describe musical direction or feeling.  
+> - Produce a JSON at the end in the format:  
+>   ```json
+>   {
+>     "top_5_music_elements": {
+>       "genres": [...],
+>       "instruments": [...]
+>     }
+>   }
+>   ```  
+>  
+> **Example or Inspiration:**  
+> - A gentle, rainy-day vibe with an uplifting twist.  
+> - Song structure similar to typical J-Pop (Verse, Chorus, Bridge, etc.).  
+> - End with the JSON snippet listing your top 5 genres and instruments for this track.
+
+---
+
+When you give ChatGPT this prompt, it will know to:
+
+1. Write Japanese lyrics at an N5/N4 level.  
+2. Use a J-Pop or R&B style structure.  
+3. Include descriptive parenthetical notes.  
+4. End with a JSON snippet summarizing the music elements it used.
+
+
+----
+
+# Example Two
+**Revised Prompt (Concise Version):**
+
+> **Role/Context:**  
+> You are a creative songwriter who writes short, upbeat J-Pop/Vocaloid-style lyrics in mostly N5/N4 Japanese. This time, the theme is “using GitHub Codespaces.”  
+
+> **Task:**  
+> 1. Write a short Japanese song, structured with clear headings:  
+>    - [Instrumental Intro], [Verse 1], [Pre-Chorus], [Chorus], [Bridge], [Outro]  
+> 2. Provide short descriptive parentheses to indicate the musical vibe or direction (e.g., (キラキラとした感じ), (アップテンポ), etc.).  
+> 3. Keep the Japanese lyrics around N5/N4 level.  
+> 4. At the end, output a CSV list of your “top 5 music elements” (two columns: "Genres" and "Instruments").  
+>    - Example CSV format:  
+>      ```  
+>      Genres,Instruments  
+>      xxxxxx,xxxxxx  
+>      ...  
+>      ```  
+
+> **Requirements:**  
+> - The song should be about GitHub Codespaces (similar to the example “country” song, but here in a Vocaloid J-Pop vibe).  
+> - Maintain a concise style and keep it cohesive.  
+> - Use short parenthetical notes in Japanese to convey the musical direction.  
+> - End with a CSV snippet listing your top 5 music elements.  
+
+When given this prompt, ChatGPT will:  
+1. Write a Vocaloid/J-Pop style song in N5/N4 Japanese, referencing GitHub Codespaces.  
+2. Use clear section headers.  
+3. Insert short parentheses describing vibe or direction.  
+4. Output a concise CSV snippet listing 5 music elements (genres/instruments).
