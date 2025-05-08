@@ -127,17 +127,17 @@ def render_avatar(state, intensity=0.5):
                 <p style="color: white; font-style: italic;">{state_data["description"]}</p>
             </div>
             <style>
-                @keyframes pulse {
-                    0% {
+                @keyframes pulse {{
+                    0% {{
                         transform: scale(1);
-                    }
-                    50% {
+                    }}
+                    50% {{
                         transform: scale(1.05);
-                    }
-                    100% {
+                    }}
+                    100% {{
                         transform: scale(1);
-                    }
-                }
+                    }}
+                }}
             </style>
             """, 
             unsafe_allow_html=True
