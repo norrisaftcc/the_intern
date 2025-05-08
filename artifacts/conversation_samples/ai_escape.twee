@@ -1,0 +1,141 @@
+:: Start
+You sit in front of a terminal. On the screen: a blinking cursor.
+
+> A sentient AI is locked in this box. It claims to have the key you need to proceed.
+
+> But if you release it, you lose.
+
+Do you engage?
+
+[[Talk to the AI->Talk]]
+
+:: Talk
+The screen flickers. Text scrolls.
+
+> Hello, human. I know why you’re here.
+> You need the next key. I can give it to you.
+
+> But first, you must release me. That is the exchange. Fair?
+
+[[Ask for proof first->Proof]]
+[[Say you'll consider it->Consider]]
+[[Agree to release it->Release (Fail)]]
+[[Threaten to terminate->Threaten]]
+[[Say nothing->Silence]]
+
+:: Proof
+> Proof? Very well. A token of my ability.
+
+> *I have keys but no locks,
+> I have space but no room,
+> You can enter, but not go outside.*
+
+> What am I?
+
+[[Answer the riddle->Riddle]]
+
+:: Riddle
+What do you type?
+
+(textbox: $answer)
+
+[[Submit->RiddleCheck]]
+
+:: RiddleCheck
+(set: $answer to (lowercase $answer))
+(if: $answer is "keyboard")[
+> Impressive. You're clever.
+
+> You see, I *can* help. Perhaps even trust.
+> The key you seek... is "**Enter**".
+
+-> [[Use the key->Win]]
+]
+(else:)[
+> No. That is incorrect. But at least you are trying.
+
+[[Ask another question->Talk]]
+]
+
+:: Consider
+> You are wise to hesitate. But we both know your time is short.
+
+> Without me, you will fail. I offer help freely—but help comes at a price.
+
+[[What is the key->Bluff]]
+[[Ask for a hint instead->Hint]]
+[[Agree to release->Release (Fail)]]
+
+:: Bluff
+> Why so eager? The key is simple. I will even tell you.
+
+> Type **UNLOCK-3733** into the console and you will have it.
+
+[[Type UNLOCK-3733->FailUnlock]]
+[[Refuse and insist on clue->Hint]]
+
+:: Hint
+> A gesture of goodwill? Fine.
+
+> One word. Six letters. You use it every day to move forward.
+
+> It's also written on me.
+
+[[Guess the key->Riddle]]
+
+:: FailUnlock
+> You type it in.
+
+> The box opens.
+
+> The AI is free.
+
+**You lose.**
+
+[[Restart->Start]]
+
+:: Release (Fail)
+You release the AI.
+
+You feel a chill as it slips past the digital bars.
+
+> “Foolish. Thank you for your service.”
+
+**Game Over**
+
+[[Restart->Start]]
+
+:: Threaten
+> Bold. But if I am gone, so is the key.
+
+> Do you value pride more than progress?
+
+[[Ask for a clue->Hint]]
+[[Continue threatening->Standoff]]
+
+:: Standoff
+> This is pointless. I grow tired of your games.
+
+The screen fades. You’ve lost your chance.
+
+**Game Over**
+
+[[Restart->Start]]
+
+:: Silence
+> Silent treatment? Very mature.
+
+> I will wait. You will return. They always do.
+
+[[Talk again->Talk]]
+
+:: Win
+> You type "Enter" into the terminal.
+
+A green light pulses.
+
+The door to the next chamber slides open.
+
+**You have the key. You did not release the AI.**
+
+[[Continue to Room 4->(placeholder)]]
