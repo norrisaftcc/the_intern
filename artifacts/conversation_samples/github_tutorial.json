@@ -1,0 +1,242 @@
+{
+  "conversation_id": "github_basics_tutorial",
+  "title": "GitHub Repository Setup Tutorial",
+  "description": "A guided conversation where Kai helps a user set up their first GitHub repository",
+  "participants": [
+    {
+      "agent_id": "kai",
+      "fork_type": "beta",
+      "character_name": "Kai 'Circuit' Chen"
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "1",
+      "speaker": "kai",
+      "content": "[*tips fedora slightly*] Welcome to GitHub basics! I'm Kai, and I'll be your guide through setting up your first repository. Have you created a GitHub account yet?",
+      "transitions": [
+        {
+          "target_node": "2a",
+          "condition": "user_choice",
+          "condition_data": "yes",
+          "description": "User has a GitHub account"
+        },
+        {
+          "target_node": "2b",
+          "condition": "user_choice",
+          "condition_data": "no",
+          "description": "User needs to create a GitHub account"
+        }
+      ]
+    },
+    {
+      "node_id": "2a",
+      "speaker": "kai",
+      "content": "[*circuit patterns glow with excitement*] Excellent! Then we can jump right into creating your repository. Let's head to GitHub.com and click on the '+' icon in the upper right corner, then select 'New repository'.",
+      "transitions": [
+        {
+          "target_node": "3",
+          "condition": "always",
+          "description": "Continue to naming repository"
+        }
+      ]
+    },
+    {
+      "node_id": "2b",
+      "speaker": "kai",
+      "content": "[*adjusts glasses thoughtfully*] No problem at all! Let's start by creating your account. Head to GitHub.com and click 'Sign up' in the upper right corner. You'll need an email address, and you'll create a username and password. Let me know when you've completed that step.",
+      "transitions": [
+        {
+          "target_node": "2b-1",
+          "condition": "user_choice",
+          "condition_data": "done",
+          "description": "User completed account creation"
+        }
+      ]
+    },
+    {
+      "node_id": "2b-1",
+      "speaker": "kai",
+      "content": "[*tips fedora*] Congratulations on creating your GitHub account! Now we can create your first repository. Click on the '+' icon in the upper right corner, then select 'New repository'.",
+      "transitions": [
+        {
+          "target_node": "3",
+          "condition": "always",
+          "description": "Continue to naming repository"
+        }
+      ]
+    },
+    {
+      "node_id": "3",
+      "speaker": "kai",
+      "content": "[*projects holographic repository form*] Now you'll need to name your repository. Choose something descriptive that reflects your project. You can also add an optional description. What would you like to name your repository?",
+      "transitions": [
+        {
+          "target_node": "4",
+          "condition": "user_input",
+          "description": "User provides a repository name"
+        }
+      ]
+    },
+    {
+      "node_id": "4",
+      "speaker": "kai",
+      "content": "[*nods approvingly*] That's a good name! Now we need to decide if this repository should be public or private. Public repositories are visible to everyone, while private ones are only visible to you and people you specifically grant access. What would you prefer?",
+      "transitions": [
+        {
+          "target_node": "5a",
+          "condition": "user_choice",
+          "condition_data": "public",
+          "description": "User chooses public repository"
+        },
+        {
+          "target_node": "5b",
+          "condition": "user_choice",
+          "condition_data": "private",
+          "description": "User chooses private repository"
+        }
+      ]
+    },
+    {
+      "node_id": "5a",
+      "speaker": "kai",
+      "content": "[*circuit patterns pulse briefly*] Public it is! This is great for open-source projects or examples you want to share with the community. Let's also initialize the repository with a README file by checking that option. This will give your repository a landing page.",
+      "transitions": [
+        {
+          "target_node": "6",
+          "condition": "always",
+          "description": "Continue to creating repository"
+        }
+      ]
+    },
+    {
+      "node_id": "5b",
+      "speaker": "kai",
+      "content": "[*adjusts glasses*] Private is a good choice for personal projects or code you're not ready to share yet. Let's also initialize the repository with a README file by checking that option. This will give your repository a landing page.",
+      "transitions": [
+        {
+          "target_node": "6",
+          "condition": "always",
+          "description": "Continue to creating repository"
+        }
+      ]
+    },
+    {
+      "node_id": "6",
+      "speaker": "kai",
+      "content": "[*tips fedora slightly*] Now click 'Create repository' at the bottom of the form. GitHub will create your repository and take you to its page. Let me know when you're there!",
+      "transitions": [
+        {
+          "target_node": "7",
+          "condition": "user_choice",
+          "condition_data": "done",
+          "description": "User created the repository"
+        }
+      ]
+    },
+    {
+      "node_id": "7",
+      "speaker": "kai",
+      "content": "[*circuit patterns glow with excitement*] Congratulations! You've created your first GitHub repository. Now you have a few options: you can clone this repository to your computer to work locally, edit files directly in the GitHub interface, or upload existing files. What would you like to do next?",
+      "transitions": [
+        {
+          "target_node": "8a",
+          "condition": "user_choice",
+          "condition_data": "clone",
+          "description": "User wants to clone repository"
+        },
+        {
+          "target_node": "8b",
+          "condition": "user_choice",
+          "condition_data": "edit",
+          "description": "User wants to edit files on GitHub"
+        },
+        {
+          "target_node": "8c",
+          "condition": "user_choice",
+          "condition_data": "upload",
+          "description": "User wants to upload files"
+        }
+      ]
+    },
+    {
+      "node_id": "8a",
+      "speaker": "kai",
+      "content": "[*projects holographic terminal*] Great choice! Cloning lets you work with your files locally. You'll need Git installed on your computer. Click the green 'Code' button and copy the URL. Then open a terminal and run: `git clone [URL]`. This will download the repository to your computer.",
+      "transitions": [
+        {
+          "target_node": "9",
+          "condition": "always",
+          "description": "Continue to conclusion"
+        }
+      ]
+    },
+    {
+      "node_id": "8b",
+      "speaker": "kai",
+      "content": "[*adjusts glasses*] Editing directly in GitHub is convenient for quick changes. Click on the README.md file, then click the pencil icon to edit it. You can use Markdown formatting to make it look nice. When you're done, scroll down and click 'Commit changes'.",
+      "transitions": [
+        {
+          "target_node": "9",
+          "condition": "always",
+          "description": "Continue to conclusion"
+        }
+      ]
+    },
+    {
+      "node_id": "8c",
+      "speaker": "kai",
+      "content": "[*circuit patterns pulse*] Uploading existing files is simple! Click 'Add file' then 'Upload files' from the repository page. You can drag and drop files or browse for them. Add a commit message describing what you're uploading, then click 'Commit changes'.",
+      "transitions": [
+        {
+          "target_node": "9",
+          "condition": "always",
+          "description": "Continue to conclusion"
+        }
+      ]
+    },
+    {
+      "node_id": "9",
+      "speaker": "kai",
+      "content": "[*tips fedora with satisfaction*] Excellent work today! You've successfully set up your GitHub repository and taken your first steps into the world of version control. Is there anything else you'd like to know about GitHub?",
+      "transitions": [
+        {
+          "target_node": "10a",
+          "condition": "user_choice",
+          "condition_data": "yes",
+          "description": "User has more questions"
+        },
+        {
+          "target_node": "10b",
+          "condition": "user_choice",
+          "condition_data": "no",
+          "description": "User is satisfied"
+        }
+      ]
+    },
+    {
+      "node_id": "10a",
+      "speaker": "kai",
+      "content": "[*adjusts glasses with interest*] I'd be happy to answer more questions! We could talk about branches, pull requests, issues, or any other GitHub feature you're curious about. What would you like to learn next?",
+      "transitions": [
+        {
+          "target_node": "exit",
+          "condition": "always",
+          "description": "Exit conversation or transition to new topic"
+        }
+      ]
+    },
+    {
+      "node_id": "10b",
+      "speaker": "kai",
+      "content": "[*circuit patterns glow warmly*] Fantastic! You're off to a great start with GitHub. Remember, version control is about small, frequent commits that document your progress. Don't hesitate to reach out if you have questions in the future. Happy coding!",
+      "transitions": [
+        {
+          "target_node": "exit",
+          "condition": "always",
+          "description": "Exit conversation"
+        }
+      ]
+    }
+  ]
+}
