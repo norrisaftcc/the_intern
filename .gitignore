@@ -10,3 +10,4 @@ artifacts/.DS_Store
 projects/.DS_Store
 
 **/.claude/settings.local.json
+*.pyc
