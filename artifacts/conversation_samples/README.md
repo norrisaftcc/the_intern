@@ -38,14 +38,25 @@ Each conversation sample follows this JSON structure:
 }
 ```
 
+## Available Samples
+
+| Filename | Description | Participants | Features |
+|----------|-------------|--------------|----------|
+| `github_tutorial.json` | GitHub repository setup walkthrough | Kai (Beta) | Branching paths based on user experience |
+| `debugging_session.json` | Python debugging assistance | Kai (Beta) | Technical problem-solving |
+| `creative_project.json` | Animation project planning | Liza (Gamma) | Creative collaboration |
+| `technical_interview.json` | Python backend developer interview | Kai (Gamma) | Technical assessment with adaptive difficulty |
+| `creative_coding.json` | Planning an interactive art installation | Kai (Beta), Liza (Gamma) | Multi-agent collaboration between technical and creative specialists |
+
 ## Conversation Types
 
 The samples include different conversation types:
 
-1. **Tutorial Conversations**: Teaching specific technical concepts
-2. **Problem-Solving Scenarios**: Debugging and technical assistance 
-3. **Multi-Agent Interactions**: Conversations between different CSI agents
-4. **Personality Showcases**: Demonstrating character traits and emote patterns
+1. **Tutorial Conversations**: Teaching specific technical concepts (e.g., `github_tutorial.json`)
+2. **Problem-Solving Scenarios**: Debugging and technical assistance (e.g., `debugging_session.json`)
+3. **Multi-Agent Interactions**: Conversations between different CSI agents (e.g., `creative_coding.json`)
+4. **Personality Showcases**: Demonstrating character traits and emote patterns (all samples)
+5. **Technical Interviews**: Simulating interview scenarios with adaptive questioning (e.g., `technical_interview.json`)
 
 ## Using These Samples
 

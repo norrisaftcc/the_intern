@@ -218,6 +218,125 @@ def simulate_conversation(conversation: Dict[str, Any], start_node: str = "1", a
     return history
 
 
+def analyze_conversation(conversation: Dict[str, Any]) -> Dict[str, Any]:
+    """Analyze a conversation to extract statistics and patterns."""
+    if not conversation:
+        return {"error": "Empty conversation, nothing to analyze."}
+    
+    # Initialize statistics
+    stats = {
+        "node_count": 0,
+        "participant_counts": {},
+        "emote_count": 0,
+        "branching_nodes": 0,
+        "avg_content_length": 0,
+        "transitions": {
+            "always": 0,
+            "user_choice": 0,
+            "keyword": 0,
+            "other": 0
+        },
+        "common_emotes": {},
+        "path_analysis": {
+            "linear_path_length": 0,
+            "max_branch_choices": 0,
+            "exit_points": 0
+        }
+    }
+    
+    # Count participants
+    for participant in conversation.get("participants", []):
+        agent_id = participant.get("agent_id", "unknown")
+        stats["participant_counts"][agent_id] = 0
+    
+    # Add "user" to participants if not present
+    if "user" not in stats["participant_counts"]:
+        stats["participant_counts"]["user"] = 0
+    
+    # Analyze nodes
+    total_content_length = 0
+    nodes = conversation.get("nodes", [])
+    stats["node_count"] = len(nodes)
+    
+    for node in nodes:
+        speaker = node.get("speaker", "unknown")
+        content = node.get("content", "")
+        
+        # Count by speaker
+        if speaker in stats["participant_counts"]:
+            stats["participant_counts"][speaker] += 1
+        else:
+            stats["participant_counts"][speaker] = 1
+        
+        # Analyze content length
+        total_content_length += len(content)
+        
+        # Count emotes using regex pattern [*text*]
+        import re
+        emotes = re.findall(r'\[\*(.*?)\*\]', content)
+        stats["emote_count"] += len(emotes)
+        
+        # Track specific emotes
+        for emote in emotes:
+            emote_text = emote.strip().lower()
+            if emote_text in stats["common_emotes"]:
+                stats["common_emotes"][emote_text] += 1
+            else:
+                stats["common_emotes"][emote_text] = 1
+        
+        # Analyze transitions
+        transitions = node.get("transitions", [])
+        if len(transitions) > 1:
+            stats["branching_nodes"] += 1
+            stats["path_analysis"]["max_branch_choices"] = max(
+                stats["path_analysis"]["max_branch_choices"],
+                len(transitions)
+            )
+        
+        for transition in transitions:
+            condition = transition.get("condition", "other")
+            if condition in stats["transitions"]:
+                stats["transitions"][condition] += 1
+            else:
+                stats["transitions"]["other"] += 1
+            
+            if transition.get("target_node") == "exit":
+                stats["path_analysis"]["exit_points"] += 1
+    
+    # Calculate averages
+    if stats["node_count"] > 0:
+        stats["avg_content_length"] = total_content_length / stats["node_count"]
+    
+    # Find longest linear path
+    def find_longest_linear_path(node_id, visited=None):
+        if visited is None:
+            visited = set()
+        
+        node_lookup = {node["node_id"]: node for node in conversation.get("nodes", [])}
+        
+        if node_id in visited or node_id == "exit" or node_id not in node_lookup:
+            return 0
+        
+        visited.add(node_id)
+        node = node_lookup[node_id]
+        transitions = node.get("transitions", [])
+        
+        if len(transitions) == 1 and transitions[0].get("condition") == "always":
+            next_node_id = transitions[0].get("target_node")
+            return 1 + find_longest_linear_path(next_node_id, visited)
+        else:
+            return 1
+    
+    stats["path_analysis"]["linear_path_length"] = find_longest_linear_path("1")
+    
+    # Sort common emotes
+    stats["common_emotes"] = dict(
+        sorted(stats["common_emotes"].items(), key=lambda x: x[1], reverse=True)[:10]
+    )
+    
+    return stats
+
+
 def export_conversation(conversation: Dict[str, Any], output_format: str = "md") -> str:
     """Export a conversation to a readable format like Markdown."""
     if not conversation:
@@ -278,6 +397,40 @@ def export_conversation(conversation: Dict[str, Any], output_format: str = "md")
         
         traverse_conversation(current_node_id)
         
+        # Add conversation statistics
+        stats = analyze_conversation(conversation)
+        output += "\n## Conversation Statistics\n\n"
+        output += f"- **Nodes**: {stats['node_count']}\n"
+        output += f"- **Branching Points**: {stats['branching_nodes']}\n"
+        output += f"- **Emotes Used**: {stats['emote_count']}\n"
+        output += f"- **Average Message Length**: {stats['avg_content_length']:.1f} characters\n"
+        
+        output += "\n### Speaker Distribution\n\n"
+        for speaker, count in stats["participant_counts"].items():
+            speaker_name = agent_names.get(speaker, speaker)
+            output += f"- {speaker_name}: {count} messages\n"
+        
+        if stats["common_emotes"]:
+            output += "\n### Common Emotes\n\n"
+            for emote, count in list(stats["common_emotes"].items())[:5]:
+                output += f"- \"{emote}\": {count} occurrences\n"
+        
+        return output
+    
+    elif output_format == "stats":
+        # Return only the statistics in a formatted string
+        stats = analyze_conversation(conversation)
+        output = f"Statistics for: {conversation.get('title', 'Conversation')}\n\n"
+        output += f"Total Nodes: {stats['node_count']}\n"
+        output += f"Branching Points: {stats['branching_nodes']}\n"
+        output += f"Emotes Used: {stats['emote_count']}\n"
+        output += f"Average Message Length: {stats['avg_content_length']:.1f} characters\n\n"
+        
+        output += "Speaker Distribution:\n"
+        for speaker, count in stats["participant_counts"].items():
+            speaker_name = agent_names.get(speaker, speaker)
+            output += f"- {speaker_name}: {count} messages\n"
+        
         return output
     
     return "Unsupported export format."
@@ -286,11 +439,14 @@ def export_conversation(conversation: Dict[str, Any], output_format: str = "md")
 def main():
     """Main function to run the conversation utilities from the command line."""
     parser = argparse.ArgumentParser(description="Conversation utilities for CSI agent dialogs.")
-    parser.add_argument("action", choices=["validate", "visualize", "simulate", "export"],
+    parser.add_argument("action", choices=["validate", "visualize", "simulate", "export", "analyze", "compare"],
                        help="Action to perform on the conversation file")
     parser.add_argument("file", help="Path to the conversation JSON file")
     parser.add_argument("--output", "-o", help="Output file for visualize or export actions")
     parser.add_argument("--auto", "-a", action="store_true", help="Automatically select first transition in simulation")
+    parser.add_argument("--format", "-f", choices=["json", "text", "md"], default="text", 
+                       help="Output format for analysis (default: text)")
+    parser.add_argument("--compare-with", "-c", help="Path to another conversation file to compare with")
     
     args = parser.parse_args()
     
@@ -324,11 +480,114 @@ def main():
         simulate_conversation(conversation, auto_respond=args.auto)
     
     elif args.action == "export":
-        output = export_conversation(conversation)
+        output_format = "md"
+        if args.format == "stats":
+            output_format = "stats"
+            
+        output = export_conversation(conversation, output_format)
         if args.output:
             with open(args.output, 'w') as f:
                 f.write(output)
             print(f"Conversation exported to {args.output}")
+        else:
+            print(output)
+    
+    elif args.action == "analyze":
+        stats = analyze_conversation(conversation)
+        
+        if args.format == "json":
+            import json
+            output = json.dumps(stats, indent=2)
+        elif args.format == "md":
+            output = f"# Analysis of {conversation.get('title', 'Conversation')}\n\n"
+            output += f"## Basic Statistics\n\n"
+            output += f"- **Nodes**: {stats['node_count']}\n"
+            output += f"- **Branching Points**: {stats['branching_nodes']}\n"
+            output += f"- **Emotes Used**: {stats['emote_count']}\n"
+            output += f"- **Average Message Length**: {stats['avg_content_length']:.1f} characters\n"
+            output += f"- **Longest Linear Path**: {stats['path_analysis']['linear_path_length']} nodes\n"
+            output += f"- **Maximum Branch Choices**: {stats['path_analysis']['max_branch_choices']}\n"
+            output += f"- **Exit Points**: {stats['path_analysis']['exit_points']}\n\n"
+            
+            output += f"## Speaker Distribution\n\n"
+            for speaker, count in stats["participant_counts"].items():
+                output += f"- **{speaker}**: {count} messages\n"
+            
+            output += f"\n## Transition Types\n\n"
+            for condition, count in stats["transitions"].items():
+                output += f"- **{condition}**: {count}\n"
+            
+            if stats["common_emotes"]:
+                output += f"\n## Common Emotes\n\n"
+                for emote, count in list(stats["common_emotes"].items())[:5]:
+                    output += f"- \"{emote}\": {count} occurrences\n"
+        else:  # text format
+            output = f"Analysis of: {conversation.get('title', 'Conversation')}\n\n"
+            output += f"Basic Statistics:\n"
+            output += f"  Nodes: {stats['node_count']}\n"
+            output += f"  Branching Points: {stats['branching_nodes']}\n"
+            output += f"  Emotes Used: {stats['emote_count']}\n"
+            output += f"  Average Message Length: {stats['avg_content_length']:.1f} characters\n"
+            output += f"  Longest Linear Path: {stats['path_analysis']['linear_path_length']} nodes\n"
+            output += f"  Maximum Branch Choices: {stats['path_analysis']['max_branch_choices']}\n"
+            output += f"  Exit Points: {stats['path_analysis']['exit_points']}\n\n"
+            
+            output += f"Speaker Distribution:\n"
+            for speaker, count in stats["participant_counts"].items():
+                output += f"  {speaker}: {count} messages\n"
+            
+            output += f"\nTransition Types:\n"
+            for condition, count in stats["transitions"].items():
+                output += f"  {condition}: {count}\n"
+            
+            if stats["common_emotes"]:
+                output += f"\nCommon Emotes:\n"
+                for emote, count in list(stats["common_emotes"].items())[:5]:
+                    output += f"  \"{emote}\": {count} occurrences\n"
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                f.write(output)
+            print(f"Analysis saved to {args.output}")
+        else:
+            print(output)
+    
+    elif args.action == "compare":
+        if not args.compare_with:
+            print("Error: --compare-with/-c argument is required for compare action")
+            return
+            
+        comparison_conversation = load_conversation(args.compare_with)
+        if not comparison_conversation:
+            print(f"Failed to load comparison conversation from {args.compare_with}")
+            return
+            
+        stats1 = analyze_conversation(conversation)
+        stats2 = analyze_conversation(comparison_conversation)
+        
+        output = f"Comparison: {conversation.get('title', 'Conversation 1')} vs. {comparison_conversation.get('title', 'Conversation 2')}\n\n"
+        
+        output += f"Basic Statistics:\n"
+        output += f"  Nodes: {stats1['node_count']} vs. {stats2['node_count']}\n"
+        output += f"  Branching Points: {stats1['branching_nodes']} vs. {stats2['branching_nodes']}\n"
+        output += f"  Emotes Used: {stats1['emote_count']} vs. {stats2['emote_count']}\n"
+        output += f"  Average Message Length: {stats1['avg_content_length']:.1f} vs. {stats2['avg_content_length']:.1f} characters\n"
+        output += f"  Longest Linear Path: {stats1['path_analysis']['linear_path_length']} vs. {stats2['path_analysis']['linear_path_length']} nodes\n\n"
+        
+        # Compare common emotes
+        common_emotes1 = set(stats1["common_emotes"].keys())
+        common_emotes2 = set(stats2["common_emotes"].keys())
+        shared_emotes = common_emotes1.intersection(common_emotes2)
+        
+        if shared_emotes:
+            output += f"Shared Emotes:\n"
+            for emote in shared_emotes:
+                output += f"  \"{emote}\": {stats1['common_emotes'].get(emote, 0)} vs. {stats2['common_emotes'].get(emote, 0)} occurrences\n"
+        
+        if args.output:
+            with open(args.output, 'w') as f:
+                f.write(output)
+            print(f"Comparison saved to {args.output}")
         else:
             print(output)
 
