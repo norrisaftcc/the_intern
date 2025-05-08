@@ -1,4 +1,4 @@
-tech-stack-diagram.py
+#tech-stack-diagram.py
 
 # Replacing FancyArrowPatch with Arrow for compatibility
 import matplotlib.pyplot as plt
