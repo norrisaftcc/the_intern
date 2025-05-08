@@ -6,6 +6,7 @@ import datetime
 import random
 import pathlib
 from dotenv import load_dotenv
+from avatar_svg import generate_avatar_svg
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +47,8 @@ if 'system_prompt' not in st.session_state:
     st.session_state.system_prompt = ""
 if 'character_name' not in st.session_state:
     st.session_state.character_name = "Kai 'Circuit' Chen"
+if 'character_type' not in st.session_state:
+    st.session_state.character_type = "circuit"
 
 # Define avatar states
 AVATAR_STATES = {
@@ -125,45 +128,38 @@ def determine_avatar_state(emotes):
 def render_avatar():
     state = st.session_state.current_state
     intensity = st.session_state.emotion_intensity
+    fork_type = st.session_state.fork_type
+    character_type = st.session_state.character_type
     state_data = AVATAR_STATES[state]
-    color = state_data["color"]
-    brightness = int(100 + (intensity * 50))
     
     col1, col2 = st.columns([1, 3])
     
     with col1:
+        # Generate SVG avatar
+        svg = generate_avatar_svg(
+            state=state,
+            fork_type=fork_type,
+            intensity=intensity,
+            character_type=character_type
+        )
+        
+        # Display the avatar
+        st.markdown(svg, unsafe_allow_html=True)
+        
+        # Display character info below the avatar
         st.markdown(
             f"""
             <div style="
-                background-color: {color}; 
-                filter: brightness({brightness}%);
-                padding: 20px; 
-                border-radius: 10px; 
                 text-align: center;
-                animation: pulse 2s infinite;
-                margin-bottom: 20px;
+                margin-top: 10px;
+                padding: 10px;
+                background-color: {state_data["color"]}30;
+                border-radius: 5px;
             ">
-                <h1 style="color: white; font-size: 3em; margin-bottom: 0;">{state_data["emoji"]}</h1>
-                <h3 style="color: white; margin-top: 0;">{st.session_state.character_name}</h3>
-                <p style="color: white; font-style: italic;">{state_data["description"]}</p>
-                <div style="background-color: rgba(255,255,255,0.2); border-radius: 5px; padding: 5px; margin-top: 10px;">
-                    <small style="color: white;">{st.session_state.fork_type} Fork</small>
-                </div>
+                <h3 style="margin: 0; color: {state_data["color"]};">{st.session_state.character_name}</h3>
+                <p style="margin: 0; font-style: italic; color: {state_data["color"]};">{state_data["description"]}</p>
             </div>
-            <style>
-                @keyframes pulse {
-                    0% {
-                        transform: scale(1);
-                    }
-                    50% {
-                        transform: scale(1.03);
-                    }
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-            </style>
-            """, 
+            """,
             unsafe_allow_html=True
         )
     
@@ -346,6 +342,15 @@ def configure_settings():
                 if st.button(f"Load {char_data['name']}"):
                     st.session_state.character_name = char_data["name"]
                     st.session_state.system_prompt = char_data["system_prompt"]
+                    
+                    # Set character type based on selected character
+                    if selected_character == "kai":
+                        st.session_state.character_type = "circuit"
+                    elif selected_character == "teacherbot":
+                        st.session_state.character_type = "teacherbot"
+                    elif selected_character == "debug_whiz":
+                        st.session_state.character_type = "debug_whiz"
+                    
                     st.session_state.messages.append({
                         "role": "system", 
                         "content": f"[Character switched to {char_data['name']}]"
@@ -368,11 +373,34 @@ def configure_settings():
                 "content": f"[Character name changed to {character_name}]"
             })
         
+        # Character type selection
+        char_type_options = {
+            "circuit": "Cyberpunk Detective (Kai)",
+            "teacherbot": "Educational Assistant",
+            "debug_whiz": "Debugging Specialist"
+        }
+        
+        selected_char_type = st.selectbox(
+            "Avatar Style",
+            options=list(char_type_options.keys()),
+            index=list(char_type_options.keys()).index(st.session_state.character_type) 
+                if st.session_state.character_type in char_type_options else 0,
+            format_func=lambda x: char_type_options[x],
+            help="Select the visual style for your agent's avatar"
+        )
+        
+        if selected_char_type != st.session_state.character_type:
+            st.session_state.character_type = selected_char_type
+        
+        # Fork type selection
         fork_options = ["Alpha", "Beta", "Gamma"]
-        fork_type = st.selectbox("Fork Type", 
-                                fork_options, 
-                                index=fork_options.index(st.session_state.fork_type),
-                                help="Fork types represent different agent capabilities.")
+        fork_type = st.selectbox(
+            "Fork Type", 
+            fork_options, 
+            index=fork_options.index(st.session_state.fork_type),
+            help="Fork types represent different agent capabilities."
+        )
+        
         if fork_type != st.session_state.fork_type:
             st.session_state.fork_type = fork_type
             st.session_state.messages.append({
