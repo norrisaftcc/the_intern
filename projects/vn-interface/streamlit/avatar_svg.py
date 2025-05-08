@@ -13,7 +13,7 @@ def generate_avatar_svg(state="default", fork_type="Alpha", intensity=0.7, chara
     - character_type: Character style template (circuit, teacherbot, debug_whiz)
     
     Returns:
-    - SVG markup as a string
+    - SVG markup as a string wrapped in HTML to ensure proper rendering
     """
     # Base colors for different fork types
     fork_colors = {
@@ -118,7 +118,7 @@ def generate_avatar_svg(state="default", fork_type="Alpha", intensity=0.7, chara
     animation = animations.get(state, "")
     
     # Generate the SVG
-    svg = f"""
+    svg_content = f"""
     <svg width="250" height="300" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
         <style>
             .circuit-line {{
@@ -167,7 +167,12 @@ def generate_avatar_svg(state="default", fork_type="Alpha", intensity=0.7, chara
     </svg>
     """
     
-    return svg
+    # Wrap the SVG in HTML for proper rendering in Streamlit
+    return f"""
+    <div style="display: flex; justify-content: center; align-items: center; background-color: #f0f2f6; padding: 20px; border-radius: 10px;">
+        {svg_content}
+    </div>
+    """
 
 
 def generate_circuit_patterns(show_circuits, accent_color, state):

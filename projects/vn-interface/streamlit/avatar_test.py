@@ -63,7 +63,7 @@ svg = generate_avatar_svg(
 col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.markdown(svg, unsafe_allow_html=True)
+    st.components.v1.html(svg, height=400)
     
 with col2:
     st.markdown(f"## {character_types[character_type]}")

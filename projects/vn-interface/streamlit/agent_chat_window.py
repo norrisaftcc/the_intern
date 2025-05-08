@@ -49,6 +49,13 @@ if 'character_name' not in st.session_state:
     st.session_state.character_name = "Kai 'Circuit' Chen"
 if 'character_type' not in st.session_state:
     st.session_state.character_type = "circuit"
+if 'openai_api_key' not in st.session_state:
+    # Try to get API key from environment variables or secrets
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    # Check for Streamlit secrets
+    if not api_key and hasattr(st, "secrets") and "api_keys" in st.secrets:
+        api_key = st.secrets["api_keys"].get("openai", "")
+    st.session_state.openai_api_key = api_key
 
 # Define avatar states
 AVATAR_STATES = {
@@ -144,7 +151,7 @@ def render_avatar():
         )
         
         # Display the avatar
-        st.markdown(svg, unsafe_allow_html=True)
+        st.components.v1.html(svg, height=400)
         
         # Display character info below the avatar
         st.markdown(
