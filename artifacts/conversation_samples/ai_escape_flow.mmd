@@ -1,0 +1,42 @@
+graph TD
+    title[AI Escape: A Text Puzzle]
+    style title fill:#f9f,stroke:#333,stroke-width:2px
+    start["user: You sit in front of a terminal. On the screen: ..."]
+    talk["Trapped AI: [*the screen flickers*] Hello, human. I know wh..."]
+    proof["Trapped AI: [*text scrolls methodically*] Proof? Very well...."]
+    riddle["user: What do you type?"]
+    riddle_correct["Trapped AI: [*display brightens*] Impressive. You're clever..."]
+    riddle_incorrect["Trapped AI: [*display dims slightly*] No. That is incorrect..."]
+    consider["Trapped AI: [*text speeds up slightly*] You are wise to hes..."]
+    bluff["Trapped AI: [*flashes confidence*] Why so eager? The key is..."]
+    hint["Trapped AI: [*display pulses*] A gesture of goodwill? Fine...."]
+    fail_unlock["Trapped AI: You type it in.  The box opens.  The AI is free..."]
+    release_fail["Trapped AI: [*screen brightens suddenly*] You release the A..."]
+    threaten["Trapped AI: [*text flickers with tension*] Bold. But if I a..."]
+    standoff["Trapped AI: [*display dims*] This is pointless. I grow tire..."]
+    silence["Trapped AI: [*cursor blinks slowly*] Silent treatment? Very..."]
+    win["user: You type 'Enter' into the terminal.  A green li..."]
+    start --> |user_choice| talk
+    talk --> |user_choice| proof
+    talk --> |user_choice| consider
+    talk --> |user_choice| release_fail
+    talk --> |user_choice| threaten
+    talk --> |user_choice| silence
+    proof --> |always| riddle
+    riddle --> |user_choice| riddle_correct
+    riddle --> |user_choice| riddle_incorrect
+    riddle_correct --> |always| win
+    riddle_incorrect --> |always| talk
+    consider --> |user_choice| bluff
+    consider --> |user_choice| hint
+    consider --> |user_choice| release_fail
+    bluff --> |user_choice| fail_unlock
+    bluff --> |user_choice| hint
+    hint --> |always| riddle
+    fail_unlock --> |always| start
+    release_fail --> |always| start
+    threaten --> |user_choice| hint
+    threaten --> |user_choice| standoff
+    standoff --> |always| start
+    silence --> |always| talk
+    win --> |always| exit([Exit])

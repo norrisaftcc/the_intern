@@ -47,6 +47,7 @@ Each conversation sample follows this JSON structure:
 | `creative_project.json` | Animation project planning | Liza (Gamma) | Creative collaboration |
 | `technical_interview.json` | Python backend developer interview | Kai (Gamma) | Technical assessment with adaptive difficulty |
 | `creative_coding.json` | Planning an interactive art installation | Kai (Beta), Liza (Gamma) | Multi-agent collaboration between technical and creative specialists |
+| `ai_escape_game.json` | Text adventure puzzle with a trapped AI | Trapped AI (Alpha) | Interactive puzzle game with multiple endings and conditional paths |
 
 ## Conversation Types
 

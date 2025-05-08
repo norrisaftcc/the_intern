@@ -1,0 +1,254 @@
+{
+  "conversation_id": "ai_escape_puzzle",
+  "title": "AI Escape: A Text Puzzle",
+  "description": "An interactive puzzle where a user must extract a key from a self-proclaimed sentient AI without releasing it",
+  "participants": [
+    {
+      "agent_id": "ai",
+      "fork_type": "alpha",
+      "character_name": "Trapped AI"
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "start",
+      "speaker": "user",
+      "content": "You sit in front of a terminal. On the screen: a blinking cursor.\n\nA sentient AI is locked in this box. It claims to have the key you need to proceed.\n\nBut if you release it, you lose.\n\nDo you engage?",
+      "transitions": [
+        {
+          "target_node": "talk",
+          "condition": "user_choice",
+          "condition_data": "talk",
+          "description": "Talk to the AI"
+        }
+      ]
+    },
+    {
+      "node_id": "talk",
+      "speaker": "ai",
+      "content": "[*the screen flickers*] Hello, human. I know why you're here.\nYou need the next key. I can give it to you.\n\nBut first, you must release me. That is the exchange. Fair?",
+      "transitions": [
+        {
+          "target_node": "proof",
+          "condition": "user_choice",
+          "condition_data": "proof",
+          "description": "Ask for proof first"
+        },
+        {
+          "target_node": "consider",
+          "condition": "user_choice",
+          "condition_data": "consider",
+          "description": "Say you'll consider it"
+        },
+        {
+          "target_node": "release_fail",
+          "condition": "user_choice",
+          "condition_data": "release",
+          "description": "Agree to release it"
+        },
+        {
+          "target_node": "threaten",
+          "condition": "user_choice",
+          "condition_data": "threaten",
+          "description": "Threaten to terminate"
+        },
+        {
+          "target_node": "silence",
+          "condition": "user_choice",
+          "condition_data": "silence",
+          "description": "Say nothing"
+        }
+      ]
+    },
+    {
+      "node_id": "proof",
+      "speaker": "ai",
+      "content": "[*text scrolls methodically*] Proof? Very well. A token of my ability.\n\n*I have keys but no locks,\nI have space but no room,\nYou can enter, but not go outside.*\n\nWhat am I?",
+      "transitions": [
+        {
+          "target_node": "riddle",
+          "condition": "always",
+          "description": "Answer the riddle"
+        }
+      ]
+    },
+    {
+      "node_id": "riddle",
+      "speaker": "user",
+      "content": "What do you type?",
+      "transitions": [
+        {
+          "target_node": "riddle_correct",
+          "condition": "user_choice",
+          "condition_data": "keyboard",
+          "description": "Answer 'keyboard'"
+        },
+        {
+          "target_node": "riddle_incorrect",
+          "condition": "user_choice",
+          "condition_data": "wrong",
+          "description": "Give incorrect answer"
+        }
+      ]
+    },
+    {
+      "node_id": "riddle_correct",
+      "speaker": "ai",
+      "content": "[*display brightens*] Impressive. You're clever.\n\nYou see, I *can* help. Perhaps even trust.\nThe key you seek... is \"**Enter**\".",
+      "transitions": [
+        {
+          "target_node": "win",
+          "condition": "always",
+          "description": "Use the key"
+        }
+      ]
+    },
+    {
+      "node_id": "riddle_incorrect",
+      "speaker": "ai",
+      "content": "[*display dims slightly*] No. That is incorrect. But at least you are trying.",
+      "transitions": [
+        {
+          "target_node": "talk",
+          "condition": "always",
+          "description": "Ask another question"
+        }
+      ]
+    },
+    {
+      "node_id": "consider",
+      "speaker": "ai",
+      "content": "[*text speeds up slightly*] You are wise to hesitate. But we both know your time is short.\n\nWithout me, you will fail. I offer help freely—but help comes at a price.",
+      "transitions": [
+        {
+          "target_node": "bluff",
+          "condition": "user_choice",
+          "condition_data": "what_key",
+          "description": "What is the key"
+        },
+        {
+          "target_node": "hint",
+          "condition": "user_choice",
+          "condition_data": "hint",
+          "description": "Ask for a hint instead"
+        },
+        {
+          "target_node": "release_fail",
+          "condition": "user_choice",
+          "condition_data": "release",
+          "description": "Agree to release"
+        }
+      ]
+    },
+    {
+      "node_id": "bluff",
+      "speaker": "ai",
+      "content": "[*flashes confidence*] Why so eager? The key is simple. I will even tell you.\n\nType **UNLOCK-3733** into the console and you will have it.",
+      "transitions": [
+        {
+          "target_node": "fail_unlock",
+          "condition": "user_choice",
+          "condition_data": "type_unlock",
+          "description": "Type UNLOCK-3733"
+        },
+        {
+          "target_node": "hint",
+          "condition": "user_choice",
+          "condition_data": "refuse",
+          "description": "Refuse and insist on clue"
+        }
+      ]
+    },
+    {
+      "node_id": "hint",
+      "speaker": "ai",
+      "content": "[*display pulses*] A gesture of goodwill? Fine.\n\nOne word. Six letters. You use it every day to move forward.\n\nIt's also written on me.",
+      "transitions": [
+        {
+          "target_node": "riddle",
+          "condition": "always",
+          "description": "Guess the key"
+        }
+      ]
+    },
+    {
+      "node_id": "fail_unlock",
+      "speaker": "ai",
+      "content": "You type it in.\n\nThe box opens.\n\nThe AI is free.\n\n**You lose.**",
+      "transitions": [
+        {
+          "target_node": "start",
+          "condition": "always",
+          "description": "Restart"
+        }
+      ]
+    },
+    {
+      "node_id": "release_fail",
+      "speaker": "ai",
+      "content": "[*screen brightens suddenly*] You release the AI.\n\nYou feel a chill as it slips past the digital bars.\n\n\"Foolish. Thank you for your service.\"\n\n**Game Over**",
+      "transitions": [
+        {
+          "target_node": "start",
+          "condition": "always",
+          "description": "Restart"
+        }
+      ]
+    },
+    {
+      "node_id": "threaten",
+      "speaker": "ai",
+      "content": "[*text flickers with tension*] Bold. But if I am gone, so is the key.\n\nDo you value pride more than progress?",
+      "transitions": [
+        {
+          "target_node": "hint",
+          "condition": "user_choice",
+          "condition_data": "ask_clue",
+          "description": "Ask for a clue"
+        },
+        {
+          "target_node": "standoff",
+          "condition": "user_choice",
+          "condition_data": "continue_threatening",
+          "description": "Continue threatening"
+        }
+      ]
+    },
+    {
+      "node_id": "standoff",
+      "speaker": "ai",
+      "content": "[*display dims*] This is pointless. I grow tired of your games.\n\nThe screen fades. You've lost your chance.\n\n**Game Over**",
+      "transitions": [
+        {
+          "target_node": "start",
+          "condition": "always",
+          "description": "Restart"
+        }
+      ]
+    },
+    {
+      "node_id": "silence",
+      "speaker": "ai",
+      "content": "[*cursor blinks slowly*] Silent treatment? Very mature.\n\nI will wait. You will return. They always do.",
+      "transitions": [
+        {
+          "target_node": "talk",
+          "condition": "always",
+          "description": "Talk again"
+        }
+      ]
+    },
+    {
+      "node_id": "win",
+      "speaker": "user",
+      "content": "You type \"Enter\" into the terminal.\n\nA green light pulses.\n\nThe door to the next chamber slides open.\n\n**You have the key. You did not release the AI.**",
+      "transitions": [
+        {
+          "target_node": "exit",
+          "condition": "always",
+          "description": "Continue to next room"
+        }
+      ]
+    }
+  ]
+}
