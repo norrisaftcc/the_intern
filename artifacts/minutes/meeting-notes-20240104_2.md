@@ -69,3 +69,46 @@ We can also add a visual indicator or tooltip in the interface to explain this b
 By implementing role-based filtering, we ensure that `[[ ]]` messages are only processed and displayed for authorized users (like admin-level humans or sisters). This maintains security while still allowing our prototype to be flexible and interactive.
 
 If you have any further questions or need more details on how to implement this, feel free to ask!
+
+[[this is version 2, or a summary, i'm still pondering the relation between revisions and summaries]]
+
+Absolutely! Let’s summarize our work for today in a way that can be added to the meeting notes.
+
+### CSI Team Meeting Update - January 4, 2025
+
+**Agenda Recap:**
+- Visual Novel Interface Prototype Development
+
+**Key Actions and Updates:**
+
+1. **Progress on vn-avatar-interface.tsx:**
+   - Implemented dynamic avatar state management based on emotes.
+   - Created a processMessage function to handle emote extraction and update the avatar's state.
+   - Added support for role-based filtering of `[[ ]]` messages.
+
+2. **Enhancements to README.md:**
+   - Expanded documentation with detailed instructions on feature usage and extension.
+   - Included information on role-based filtering and its implications.
+
+3. **Future Work:**
+   - Continue refining avatar states and emote handling.
+   - Explore integration of audio and interactive elements for enhanced user experience.
+
+**Next Steps:**
+1. Begin implementation of full avatar image integration.
+2. Develop real-time message processing and display.
+3. Test the interface with various use cases to gather feedback.
+
+**Notes from Team Members:**
+- Circuit Chen: Working on refining the emote system and ensuring role-based filtering is correctly implemented.
+- TeacherBot: Providing guidance and assistance with backend integration as needed.
+
+---
+
+*Note: This update reflects our progress toward our Visual Novel Interface Prototype. We will continue iterating based on feedback and future enhancements.*
+
+** end of [object Object] **
+
+Would you like to finalize this summary or make any adjustments before adding it to the official minutes?
+
+[[done for the day]]
