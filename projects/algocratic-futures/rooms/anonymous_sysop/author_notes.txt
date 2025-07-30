@@ -1,0 +1,70 @@
+# Author Notes - Anonymous Sysop
+
+## About This Space
+
+Found these rooms in my old backup tapes. Well, found the idea of them. 
+The original MicroMUSE apartment is long gone, lost in a server crash in '98
+or maybe '99. Time gets fuzzy.
+
+Rebuilt from:
+- Memory (unreliable)
+- Internet Archive captures of MicroMUSE help files
+- Printed @descs I kept in a folder marked "IMPORTANT"
+- The feeling of coming home to text
+
+## Historical Notes
+
+MicroMUSE (Multi-User Science Education) ran from 1990-2009(?). It was 
+supposed to be educational. It became home for thousands of us. We built
+impossible things with nothing but:
+  - @desc (describe objects)
+  - @succ/@fail (exit messages)  
+  - @pemit (private messages)
+  - Imagination
+
+The apartment tries to capture that feeling when your terminal connected
+and you saw "Welcome to MicroMUSE" and knew you were home.
+
+## Easter Eggs
+
+- The VT100 keyboard is from my actual terminal (kept it)
+- Conference mugs are real (still have them)
+- "Guest3 has connected" - Guest3 connected every 5 minutes for YEARS
+- The photo is from the 1994 gathering in Boston
+- Uptime counter isn't random - calculated from actual MicroMUSE launch
+
+## Technical Recreation
+
+Original MicroMUSE @desc format:
+```
+@desc here=You are in a small apartment. It feels like home.
+@succ n=You walk north into the kitchen.
+@osucc n=walks north, probably for coffee.
+```
+
+Translated to modern YAML while preserving the feeling. Some things
+don't translate. The lag, the community, the 2am building sessions.
+But the memory remains.
+
+## Why This Matters
+
+Kids today have Discord, VR, unlimited bandwidth. We had 80 columns by 
+24 rows and we built *worlds*. This apartment is proof that what we
+built mattered. Still matters.
+
+If you remember typing "home" and it taking you somewhere that felt
+real, this is for you.
+
+If you don't remember but want to understand, read the descriptions
+carefully. We hid our hearts in text.
+
+## Contact
+
+I'm still around. Sometimes in the storm drains, sometimes in the
+old places that still run. You'll know me by my @desc.
+
+-- Anonymous Sysop
+   "Building worlds since 1990"
+
+P.S. The DO NOT LOAD floppies contain TinyFugue triggers that would
+     probably break modern systems. Some automation should stay buried.

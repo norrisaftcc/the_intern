@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlgoCratic Futures - Employee Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Eurostile:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #0A1929;
+            --corporate-gray: #37474F;
+            --alert-red: #D32F2F;
+            --success-green: #00E676;
+            --clearance-r: #FF0000;
+            --clearance-o: #FF8800;
+            --clearance-y: #FFFF00;
+            --clearance-g: #00FF00;
+            --clearance-b: #0000FF;
+            --clearance-i: #4B0082;
+            --clearance-v: #8B00FF;
+            --clearance-uv: #FF00FF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Eurostile', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0A1929 0%, #1A237E 100%);
+            color: #E0E0E0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Corporate Header */
+        .corporate-header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-bottom: 2px solid var(--corporate-gray);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .clearance-badge {
+            padding: 10px 20px;
+            border: 2px solid;
+            border-radius: 0;
+            font-weight: bold;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        .clearance-R { border-color: var(--clearance-r); color: var(--clearance-r); }
+        .clearance-O { border-color: var(--clearance-o); color: var(--clearance-o); }
+        .clearance-Y { border-color: var(--clearance-y); color: var(--clearance-y); }
+        .clearance-G { border-color: var(--clearance-g); color: var(--clearance-g); }
+        .clearance-B { border-color: var(--clearance-b); color: var(--clearance-b); }
+        .clearance-I { border-color: var(--clearance-i); color: var(--clearance-i); }
+        .clearance-V { border-color: var(--clearance-v); color: var(--clearance-v); }
+        .clearance-UV { 
+            border-color: var(--clearance-uv); 
+            color: var(--clearance-uv);
+            text-shadow: 0 0 10px var(--clearance-uv);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Main Dashboard */
+        .dashboard {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .panel {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--corporate-gray);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--success-green), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .panel-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            color: #90CAF9;
+        }
+
+        /* Surveillance Feed */
+        .surveillance-feed {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #B0BEC5;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .surveillance-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-left: 2px solid var(--corporate-gray);
+        }
+
+        .surveillance-entry.alert {
+            border-left-color: var(--alert-red);
+            color: #FFAB91;
+        }
+
+        /* Productivity Metrics */
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .metric-bar {
+            flex: 1;
+            height: 20px;
+            background: var(--corporate-gray);
+            margin: 0 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-green) 0%, #00C853 100%);
+            transition: width 0.5s ease;
+        }
+
+        .metric-value {
+            min-width: 50px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: #000;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            color: #00FF00;
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .terminal-line {
+            margin-bottom: 5px;
+        }
+
+        .terminal-input {
+            background: transparent;
+            border: none;
+            color: #00FF00;
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+            width: calc(100% - 20px);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: #00FF00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Corporate Messages */
+        .corporate-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid var(--alert-red);
+            padding: 40px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+
+        .corporate-message h2 {
+            color: var(--alert-red);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 2000;
+        }
+
+        .loading-text {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .loading-bar {
+            width: 300px;
+            height: 3px;
+            background: var(--corporate-gray);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 30%;
+            background: var(--success-green);
+            animation: load 2s linear infinite;
+        }
+
+        @keyframes load {
+            0% { left: -30%; }
+            100% { left: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-text">INITIALIZING EMPLOYEE PORTAL</div>
+        <div class="loading-bar"></div>
+        <div style="margin-top: 20px; font-size: 12px; opacity: 0.6;">
+            Establishing surveillance protocols...
+        </div>
+    </div>
+
+    <!-- Corporate Header -->
+    <header class="corporate-header">
+        <div class="logo">ALGOCRATIC FUTURES</div>
+        <div class="clearance-badge clearance-R" id="clearanceBadge">
+            CLEARANCE: <span id="clearanceLevel">AUTHENTICATING...</span>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Left Panel - Surveillance Feed -->
+        <section class="panel">
+            <h2 class="panel-title">SURVEILLANCE FEED</h2>
+            <div class="surveillance-feed" id="surveillanceFeed">
+                <div class="surveillance-entry">
+                    [SYSTEM] Employee portal activated
+                </div>
+                <div class="surveillance-entry">
+                    [SYSTEM] Monitoring protocols engaged
+                </div>
+            </div>
+        </section>
+
+        <!-- Center Panel - Terminal -->
+        <section class="panel">
+            <h2 class="panel-title">EMPLOYEE TERMINAL</h2>
+            <div class="terminal" id="terminal">
+                <div class="terminal-line">ALGOCRATIC FUTURES EMPLOYEE SYSTEM v2.0.84</div>
+                <div class="terminal-line">Copyright (c) 2025 AlgoCratic Industries</div>
+                <div class="terminal-line">All activities are monitored for optimization purposes</div>
+                <div class="terminal-line">====================================================</div>
+                <div class="terminal-line">&nbsp;</div>
+                <div id="terminalOutput"></div>
+                <div style="display: flex; align-items: center;">
+                    <span>&gt; </span>
+                    <input type="text" class="terminal-input" id="terminalInput" />
+                    <span class="cursor"></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel - Productivity Metrics -->
+        <section class="panel">
+            <h2 class="panel-title">PRODUCTIVITY METRICS</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <span>Productivity</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="productivityBar" style="width: 0%"></div>
+                    </div>
+                    <span class="metric-value" id="productivityValue">0%</span>
+                </div>
+                <div class="metric">
+                    <span>Loyalty</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="loyaltyBar" style="width: 0%"></div>
+                    </div>
+                    <span class="metric-value" id="loyaltyValue">0%</span>
+                </div>
+                <div class="metric">
+                    <span>Compliance</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="complianceBar" style="width: 100%"></div>
+                    </div>
+                    <span class="metric-value" id="complianceValue">100%</span>
+                </div>
+                <div class="metric">
+                    <span>Algorithm Score</span>
+                    <div class="metric-bar">
+                        <div class="metric-fill" id="algorithmBar" style="width: 0%"></div>
+                    </div>
+                    <span class="metric-value" id="algorithmValue">0%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Corporate Message Modal -->
+    <div class="corporate-message" id="corporateMessage">
+        <h2 id="messageTitle">CORPORATE DIRECTIVE</h2>
+        <p id="messageContent"></p>
+        <button onclick="dismissMessage()" style="margin-top: 20px; padding: 10px 20px; background: var(--alert-red); color: white; border: none; cursor: pointer;">
+            ACKNOWLEDGE
+        </button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
