@@ -1,0 +1,122 @@
+# Tutorial Mini-Games and Practice Rooms
+
+- room_id: movement_test_north
+  name: Movement Test - North Room
+  clearance: R
+  descriptions:
+    corporate: "Navigation assessment checkpoint Alpha."
+    reality: |
+      You made it north! A big "SUCCESS" sign lights up. A ticket 
+      dispenses from the wall. The instructor's voice says: "Great job! 
+      Now try going back south, then explore other directions!"
+  exits:
+    south: vr_movement_tutorial
+    east: movement_test_northeast
+  items: [success_ticket]
+
+- room_id: movement_test_maze_center
+  name: Movement Maze - Victory Room
+  clearance: R
+  descriptions:
+    corporate: "Spatial navigation excellence achieved."
+    reality: |
+      You found the center of the practice maze! Confetti falls from
+      somewhere above. A whole roll of tickets spills out. The walls
+      display: "You've mastered movement! Try 'exits' to always see
+      where you can go. Type 'back' or 'out' to leave most places!"
+  exits:
+    out: vr_movement_tutorial
+  items: [ticket_roll, confetti]
+
+- room_id: observation_practice_room
+  name: Observation Challenge Room
+  clearance: R
+  descriptions:
+    corporate: "Visual acuity assessment in progress."
+    reality: |
+      A room that changes each time you look! Sometimes there are 
+      three objects, sometimes five. Hidden items appear when you
+      "look under table" or "look behind curtain". Each discovery
+      earns a ticket. The trainer says: "Remember, you can look AT
+      specific things for more detail!"
+      
+      Current challenge: Find the hidden golden ticket!
+  exits:
+    back: vr_observation_training
+  items: [table, curtain, mysterious_box, hidden_golden_ticket]
+  agents: [observation_trainer]
+
+- room_id: interaction_puzzles
+  name: Advanced Interaction Challenges  
+  clearance: R
+  descriptions:
+    corporate: "Complex resource management scenarios."
+    reality: |
+      Three puzzle stations test your interaction skills:
+      
+      1. KEY PUZZLE: Use key on lock, take treasure
+      2. CONTAINER PUZZLE: Put small box in big box, organize items
+      3. GIVING PUZZLE: Give correct item to each NPC
+      
+      Each solved puzzle dispenses tickets. A leaderboard shows
+      high scores. Someone named "KEVIN" has annoyingly perfect scores.
+  exits:
+    back: vr_interaction_tutorial
+    victory: interaction_winner_room
+  items: [puzzle_key, puzzle_lock, small_box, big_box, red_gem, blue_gem]
+  agents: [puzzle_judge_1, puzzle_judge_2, puzzle_judge_3]
+
+- room_id: social_practice_booth
+  name: Private Practice Booth
+  clearance: R  
+  descriptions:
+    corporate: "Isolated communication skills development pod."
+    reality: |
+      A quiet booth with a practice dummy that responds to all
+      communication types. Signs show advanced commands:
+      - "WHISPER [person] [message]" - super private
+      - "EMOTE grins" - shows: "Player grins"  
+      - "@ooc [message]" - out of character channel
+      - "WHO" - see who's online
+      
+      The dummy gives encouraging responses to everything you try.
+  exits:
+    out: vr_social_simulator
+  agents: [practice_dummy]
+  items: [command_reference_card, comfortable_chair]
+
+- room_id: prize_counter_storage
+  name: Prize Storage Room
+  clearance: Y  # Hidden yellow+ room
+  descriptions:
+    corporate: "Inventory overflow management sector."
+    reality: |
+      The GOOD prizes are back here! Actual gaming consoles, rare
+      arcade boards, and a mysterious folder labeled "STORM DRAIN
+      MAPS - AUTHORIZED PERSONNEL ONLY". The prize teen is here
+      on break, playing a Switch. "Oh, you found the back room.
+      Cool. Take whatever, I don't get paid enough to care."
+  exits:
+    out: prize_counter
+    trapdoor: arcade_basement  # Even more secret!
+  agents: [prize_teen_on_break]
+  items: [storm_drain_maps, nintendo_switch, rare_prizes, employee_manual]
+
+- room_id: arcade_basement
+  name: Arcade Basement
+  clearance: G  # Green+ only
+  descriptions:
+    corporate: "Sub-level maintenance and storage."
+    reality: |
+      This is where the arcade connects to the storm drain network!
+      Old arcade cabinets have been repurposed as computer terminals
+      for the underground MUD development. Ethernet cables snake
+      through holes in the floor. A sign: "WELCOME TO THE REAL GAME".
+      
+      Multiple terminals show different parts of the MUD codebase.
+      This is where the tutorial designers work!
+  exits:
+    up: prize_counter_storage
+    tunnel: builders_lounge  # Direct connection!
+  agents: [tutorial_developer]
+  items: [dev_terminal, code_printouts, half_eaten_pizza]

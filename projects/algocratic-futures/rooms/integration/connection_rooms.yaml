@@ -1,0 +1,42 @@
+# Connection rooms between arcade and main game
+
+- room_id: boardwalk
+  name: Boardwalk at Bellamy  
+  clearance: R
+  descriptions:
+    corporate: |
+      Employee Transit Corridor 7-B. Please proceed to your designated
+      work area. Loitering will be reported. Productivity monitoring active.
+    reality: |
+      Wooden planks run east-west here, newer than the main stretch but 
+      already showing wear from joggers and dog walkers. The R.C. Harris 
+      filtration plant looms to the west like an art deco castle. North 
+      leads up to Kingston Road, while a makeshift path through the fence 
+      goes down to the unofficial beach. Someone's carved "VR WORLDS →" 
+      into a bench, pointing toward the arcade. The storm drain entrance
+      is barely visible behind some bushes.
+  exits:
+    east: beach_overlook
+    west: filtration_plant_gate  
+    north: kingston_road
+    arcade: boardwalk_arcade_entrance  # To tutorial!
+    tunnel: storm_drain  # Hidden main game entrance
+    
+- room_id: storm_drain_entrance
+  name: Storm Drain Entrance
+  clearance: R
+  descriptions:
+    corporate: |
+      Restricted Area. Municipal infrastructure access point. Authorized
+      maintenance personnel only. Trespassers will be prosecuted. Your
+      attempt to access this area has been logged.
+    reality: |
+      A concrete opening partially hidden by overgrown bushes. Graffiti
+      around the entrance reads "WELCOME TO THE UNDERGROUND" and "THE REAL
+      GAME STARTS HERE". You can hear echoes from below - music, voices,
+      and the hum of electronics. A laminated sign says "TUTORIAL STRONGLY
+      RECOMMENDED" with an arrow pointing back to the arcade.
+  exits:
+    out: boardwalk
+    down: storm_drain
+    shortcut: arcade_maintenance  # If you know the way

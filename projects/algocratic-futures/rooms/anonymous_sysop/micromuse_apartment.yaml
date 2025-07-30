@@ -1,0 +1,209 @@
+# Anonymous Sysop's MicroMUSE Apartment Recreation
+# "Some things are too perfect to forget" - 1993
+
+- room_id: apartment_entrance
+  name: A Familiar Doorway
+  clearance: B  # Only experienced players find this
+  descriptions:
+    corporate: |
+      Error 404: Room not found. Please contact system administrator.
+      This location does not exist in our database.
+    reality: |
+      A door that shouldn't exist, tucked between two storm drain pipes. 
+      The brass nameplate reads "apt #define HOME 127.0.0.1". Someone has 
+      scratched "est. 1993" below it. The door is slightly ajar, and you 
+      hear the faint sound of a 14.4k modem handshake from within. A sticky 
+      note says "If you remember MicroMUSE, come in. -Anonymous"
+  exits:
+    out: schrodingers_apartment  # Hidden connection
+    enter: sysop_living_room
+  items: [brass_nameplate, sticky_note]
+
+- room_id: sysop_living_room
+  name: The Living Room (Version 2.0)
+  clearance: B
+  descriptions:
+    corporate: "Unauthorized residential space detected. Violation logged."
+    reality: |
+      A meticulous recreation of a 1990s sysop's apartment. CRT monitors 
+      glow on every surface - an SGI Indigo, several VT100 terminals, and 
+      a Mac SE/30 running NCSA Telnet. Cables everywhere. A bookshelf holds 
+      O'Reilly books with animal covers, "The Whole Internet User's Guide", 
+      and printed MUD maps. A beanbag chair has a permanent body impression.
+      
+      A handwritten note: "Rebuilt from memory and archived @descs. Some 
+      details fuzzy after 30 years. The feeling remains perfect. -A"
+      
+      The west wall has postcards from MUSErs worldwide - Melbourne, 
+      Stockholm, Tokyo. Someone was very connected, once.
+  exits:
+    out: apartment_entrance
+    north: sysop_kitchen
+    east: sysop_bedroom  
+    west: sysop_office
+    down: secret_server_room
+  items: [sgi_indigo, vt100_terminal, mud_maps, postcards, oreilly_books]
+  agents: [ghost_of_lag]  # An echo of old connection issues
+
+- room_id: sysop_kitchen
+  name: The Kitchen (Rarely Used)
+  clearance: B
+  descriptions:
+    corporate: "Nutritional preparation area. Efficiency suboptimal."
+    reality: |
+      A 90s apartment kitchen, barely touched. The fridge hums with the 
+      sound of an old Seagate drive. Inside: Mountain Dew, leftover pizza, 
+      and film canisters (labeled "NOT FILM - BACKUP TAPES"). The microwave 
+      clock blinks 12:00. Always has, always will.
+      
+      Coffee maker surrounded by stained mugs with tech conference logos: 
+      "USENIX '92", "DEF CON 1.0", "MicroMUSE Gathering '94 - You Had To 
+      Be There". One mug has a wizard hat drawn in sharpie.
+  exits:
+    south: sysop_living_room
+    window: fire_escape_memory
+  items: [coffee_maker, conference_mugs, backup_tapes, pizza_box_stack]
+
+- room_id: sysop_bedroom
+  name: The Sleep Chamber
+  clearance: B
+  descriptions:
+    corporate: "Unauthorized dormancy zone. Productivity loss detected."
+    reality: |
+      A futon on the floor, never made. More important: the three computers 
+      that never sleep. One shows eternal scrolling text - a MicroMUSE 
+      connection that refuses to timeout. "Guest3 has connected" repeats 
+      endlessly. Another runs pine, 50,000 unread emails.
+      
+      The closet door is covered in dot matrix printouts of memorable MUD 
+      moments - "@toaded griefers", first successful TinyMUSH compile, the 
+      Great Lag of '94. A calendar on the wall is stuck on March 1993.
+      
+      Under the bed: boxes of 3.5" floppies labeled "MUSE BACKUP", 
+      "IMPORTANT", and mysteriously, "DO NOT LOAD".
+  exits:
+    west: sysop_living_room
+    closet: memory_overflow
+    under_bed: floppy_archive
+  items: [eternal_terminal, pine_terminal, dot_matrix_printouts, floppy_boxes]
+
+- room_id: sysop_office
+  name: The Real Living Space
+  clearance: B
+  descriptions:
+    corporate: "Unregistered productivity center. Anomaly detected."
+    reality: |
+      This is where life happened. A massive desk built from a door and 
+      cinderblocks. The main terminal - a beautiful amber phosphor display - 
+      shows a MicroMUSE wizard session frozen in time:
+      
+      ```
+      #define NOSTALGIA 
+      @desc here=A place that exists in the space between memory and code.
+      > @pemit/contents here=Time passes. Nothing changes. Everything changes.
+      ```
+      
+      Ethernet cables snake through holes drilled in the apartment walls. 
+      One is labeled "To MIT", another "To Reality (broken)". Post-it 
+      notes cover every surface with IP addresses, MUD commands, and one 
+      that just says "REMEMBER TO SLEEP" in faded ink.
+      
+      A photo taped to the monitor: pixelated faces at a MUD gathering, 
+      everyone making wizard hand gestures. You can't make out features, 
+      but the joy is clear.
+  exits:
+    east: sysop_living_room
+    secret_panel: wizard_shrine
+  items: [amber_terminal, ethernet_maze, gathering_photo, post_it_collection]
+
+- room_id: secret_server_room
+  name: The Heartbeat
+  clearance: B
+  descriptions:
+    corporate: "Critical infrastructure breach. Security alert triggered."
+    reality: |
+      Down a ladder through the floor (how is this possible in an apartment?) 
+      into what should be the apartment below, but isn't. Racks of ancient 
+      servers still running. A Sun SPARCstation quietly hosts something. 
+      The hostname label reads "ELSEWHERE.MICROMUSE.ORG".
+      
+      Power usage meters show impossible values. Uptime displays "11,234 days". 
+      A hand-drawn network diagram shows connections to places that don't 
+      exist anymore: "GopherSpace", "The WELL", "FurryMUCK", "TinyTIM".
+      
+      In the corner, a terminal shows:
+      ```
+      WHO
+      Players: 1427
+      Wizards: 23
+      Ghosts: ∞
+      You: Still here
+      ```
+      
+      The cooling fans sound like whispered conversations from 1993.
+  exits:
+    up: sysop_living_room
+    deeper: the_backbone
+  items: [sparcstation, network_diagram, uptime_display, ghost_terminal]
+
+- room_id: wizard_shrine
+  name: The Wizard Shrine
+  clearance: V  # Only the worthy
+  descriptions:
+    corporate: "ACCESS DENIED. CLEARANCE INSUFFICIENT."
+    reality: |
+      Behind the secret panel, a small room that shouldn't fit in the 
+      apartment's footprint. The walls are covered in printouts of MUD 
+      code - the original TinyMUD source, patches, hacks, evolutionary 
+      branches that led nowhere and everywhere.
+      
+      In the center, on a pedestal made of stacked programming manuals, 
+      sits a VT100 keyboard. Just the keyboard. The keys are worn smooth 
+      except for 'Q', which was never used (who quits?).
+      
+      A plaque reads:
+      "In memory of all the MU* that came before
+       And all the wizards who never logged off
+       Your worlds live on in unexpected places
+       
+       -- Anonymous Sysop, 2025
+       
+       P.S. If you understand why this matters, 
+       you're already home."
+      
+      Touching the keyboard gives you a brief vision of a thousand 
+      worlds built from nothing but text and imagination.
+  exits:
+    back: sysop_office
+    ascend: micromuse_remembered
+  items: [vt100_keyboard, source_printouts, sacred_plaque]
+
+- room_id: the_backbone
+  name: Where The Internet Lives
+  clearance: I  # Deep magic
+  descriptions:
+    corporate: "FATAL ERROR. REALITY FAULT. EVACUATE IMMEDIATELY."
+    reality: |
+      You've found it. The actual backbone. Not corporate infrastructure, 
+      not storm drains, but the place where all the old connections still 
+      exist. Fiber optic cables pulse with conversations from 1993. Packets 
+      that got lost decades ago finally finding their destinations.
+      
+      You can hear them all - the MUSEs, MUDs, MUCKs, MOOs. Every "look", 
+      every "say", every lovingly crafted @desc echoing in the data streams. 
+      A sign floats in digital space: "PACKET LOSS IS JUST MEMORIES TAKING 
+      THE SCENIC ROUTE".
+      
+      Your terminal shows:
+      ```
+      Connected to THE_BACKBONE.
+      Last login: Never and always
+      You have new mail from: everyone@everywhere.then
+      
+      > who
+      Everyone who ever typed 'connect guest guest' and found home.
+      ```
+  exits:
+    return: secret_server_room
+    follow_the_light: boardwalk  # Full circle
+  items: [fiber_memories, lost_packets, eternal_connection]
