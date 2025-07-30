@@ -11,6 +11,11 @@ from typing import Dict
 
 # === Room Setup ===
 
+# Add custom directions
+Room.add_direction('arcade', 'boardwalk')
+Room.add_direction('tunnel', 'boardwalk')
+Room.add_direction('movement', 'main')
+
 # Create our starting rooms manually for MVP
 boardwalk = Room("""
 Wooden planks run east-west here, newer than the main stretch but already 
