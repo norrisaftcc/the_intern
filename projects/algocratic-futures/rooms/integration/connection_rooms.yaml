@@ -21,6 +21,7 @@
     north: kingston_road
     arcade: boardwalk_arcade_entrance  # To tutorial!
     tunnel: storm_drain  # Hidden main game entrance
+  agents: [liza]  # Dr. LIZA Anderson contemplates art and assessment
     
 - room_id: storm_drain_entrance
   name: Storm Drain Entrance

@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from room_system import MUDWorld, Room
 from room_loader import RoomLoader
 from agent_system import AgentManager
+from agent_conversation import conversation_system
 import os
 
 class TerminalCommands:
@@ -59,6 +60,12 @@ class TerminalCommands:
         # Communication
         elif base_cmd == 'say':
             return self._handle_say(player_id, args)
+        
+        elif base_cmd in ['talk', 'speak']:
+            return self._handle_talk(player_id, args)
+        
+        elif base_cmd == 'emote':
+            return self._handle_emote(player_id, args)
         
         # Unknown command
         else:
@@ -138,7 +145,7 @@ class TerminalCommands:
 - Movement: north/n, south/s, east/e, west/w, up, down, out
 - Looking: look/l, look at [thing], exits
 - System: help, status
-- Social: say [message]
+- Social: say [message], talk to [person], emote [action]
 
 The arcade has tutorials for all commands!"""
         }
@@ -169,6 +176,65 @@ Compliance: Monitored"""
             'type': 'communication',
             'message': f'You say "{message}"',
             'room_message': f'{player_id} says "{message}"'
+        }
+    
+    def _handle_talk(self, player_id: str, args: str) -> Dict:
+        """Handle talking to NPCs"""
+        if not args:
+            return {
+                'type': 'error',
+                'message': "Talk to whom? Try: talk to liza"
+            }
+        
+        # Parse "to <name>" or just "<name>"
+        target = args.lower().replace('to ', '').strip()
+        
+        # Check if agent is in current room
+        room_id = self.world.player_locations.get(player_id, "boardwalk")
+        room = self.world.get_room(room_id)
+        
+        if room and room.agents and target in [a.lower() for a in room.agents]:
+            # Get conversation context
+            context = {
+                'first_meeting': player_id not in getattr(self, '_player_meetings', {}),
+                'room': room_id
+            }
+            
+            # Track meetings
+            if not hasattr(self, '_player_meetings'):
+                self._player_meetings = {}
+            self._player_meetings[player_id] = True
+            
+            # Get response from conversation system
+            response = conversation_system.talk_to_agent(target, args, context)
+            
+            return {
+                'type': 'conversation',
+                'speaker': target.title(),
+                'message': response
+            }
+        else:
+            return {
+                'type': 'error',
+                'message': f"You don't see {target} here."
+            }
+    
+    def _handle_emote(self, player_id: str, action: str) -> Dict:
+        """Handle player emotes"""
+        if not action:
+            return {
+                'type': 'error',
+                'message': "Emote what?"
+            }
+        
+        # Format emote
+        if not action.endswith('.'):
+            action += '.'
+        
+        return {
+            'type': 'emote',
+            'message': f"[*{player_id} {action}*]",
+            'room_message': f"[*{player_id} {action}*]"
         }
 
 # Global instance for easy access

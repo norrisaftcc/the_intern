@@ -28,6 +28,12 @@ class TerminalMUD:
             print(f"\n{message}")
         elif response_type == 'error':
             print(f"\n! {message}")
+        elif response_type == 'conversation':
+            speaker = response.get('speaker', 'Someone')
+            print(f"\n{speaker}:")
+            print(message)
+        elif response_type == 'emote':
+            print(f"\n{message}")
         else:
             print(f"\n{message}")
         
