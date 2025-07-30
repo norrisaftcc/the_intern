@@ -26,6 +26,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Import terminal integration for room loading
+from terminal_integration import terminal
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize room system on startup"""
+    print("=== Loading AlgoCratic Futures Room System ===")
+    # Terminal integration already loads rooms in __init__
+    room_count = len(terminal.world.rooms)
+    print(f"✓ Loaded {room_count} surveillance zones")
+    print("✓ Agent system initialized")
+    print("✓ Clearance hierarchy active")
+    print("=== System Ready for Employee Assessment ===")
+
 # Clearance Levels matching the dystopian hierarchy
 class ClearanceLevel(str, Enum):
     BRONZE_CODER = "BRONZE_CODER"
@@ -165,6 +179,37 @@ async def websocket_endpoint(websocket: WebSocket, employee_id: str):
             
     except Exception as e:
         manager.disconnect(employee_id)
+
+@app.websocket("/ws/terminal/{player_id}")
+async def websocket_terminal(websocket: WebSocket, player_id: str):
+    """WebSocket endpoint for terminal MUD interface"""
+    await websocket.accept()
+    
+    try:
+        # Send welcome and initial room
+        await websocket.send_json({
+            "type": "system",
+            "message": "=== TERMINAL ACCESS GRANTED ===\nClearance: PENDING"
+        })
+        
+        # Show initial room
+        response = terminal.process_command(player_id, "look")
+        await websocket.send_json(response)
+        
+        while True:
+            # Receive command
+            command = await websocket.receive_text()
+            
+            # Process through terminal integration
+            response = terminal.process_command(player_id, command)
+            
+            # Send response
+            await websocket.send_json(response)
+            
+    except Exception as e:
+        print(f"Terminal WebSocket error for {player_id}: {e}")
+    finally:
+        await websocket.close()
 
 @app.post("/api/clearance/advance")
 async def request_clearance_advancement(employee_id: str):
