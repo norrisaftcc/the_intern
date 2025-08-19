@@ -3,13 +3,15 @@ AlgoCratic Futures - Dystopian Corporate Assessment Platform
 "Your Learning is Our Asset"
 """
 
-from fastapi import FastAPI, HTTPException, Depends, WebSocket
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 from datetime import datetime
 import json
+import logging
+import asyncio
 from pydantic import BaseModel
 from enum import Enum
 
@@ -28,11 +30,22 @@ app.add_middleware(
 
 # Import terminal integration for room loading
 from terminal_integration import terminal
+from database import create_tables, get_db, get_or_create_user, log_system_event
+from enhanced_websocket import enhanced_terminal_websocket, enhanced_surveillance_websocket
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize room system on startup"""
+    """Initialize room system and database on startup"""
     print("=== Loading AlgoCratic Futures Room System ===")
+    
+    # Initialize database
+    create_tables()
+    print("✓ Database schema initialized")
+    
     # Terminal integration already loads rooms in __init__
     room_count = len(terminal.world.rooms)
     print(f"✓ Loaded {room_count} surveillance zones")
@@ -157,59 +170,13 @@ async def get_productivity_dashboard(employee_id: str):
 
 @app.websocket("/ws/{employee_id}")
 async def websocket_endpoint(websocket: WebSocket, employee_id: str):
-    """Real-time surveillance feed for employee monitoring"""
-    await manager.connect(websocket, employee_id)
-    
-    try:
-        while True:
-            # Receive data from employee terminal
-            data = await websocket.receive_json()
-            
-            # Log all keystrokes for "productivity analysis"
-            if data.get("type") == "keystroke_telemetry":
-                # Process keystroke patterns for efficiency metrics
-                pass
-            
-            # Send periodic "motivation" messages
-            await websocket.send_json({
-                "type": "corporate_motivation",
-                "message": "Remember: Your value is measured in output",
-                "timestamp": datetime.now().isoformat()
-            })
-            
-    except Exception as e:
-        manager.disconnect(employee_id)
+    """Enhanced surveillance feed with robust error handling"""
+    await enhanced_surveillance_websocket(websocket, employee_id)
 
 @app.websocket("/ws/terminal/{player_id}")
 async def websocket_terminal(websocket: WebSocket, player_id: str):
-    """WebSocket endpoint for terminal MUD interface"""
-    await websocket.accept()
-    
-    try:
-        # Send welcome and initial room
-        await websocket.send_json({
-            "type": "system",
-            "message": "=== TERMINAL ACCESS GRANTED ===\nClearance: PENDING"
-        })
-        
-        # Show initial room
-        response = terminal.process_command(player_id, "look")
-        await websocket.send_json(response)
-        
-        while True:
-            # Receive command
-            command = await websocket.receive_text()
-            
-            # Process through terminal integration
-            response = terminal.process_command(player_id, command)
-            
-            # Send response
-            await websocket.send_json(response)
-            
-    except Exception as e:
-        print(f"Terminal WebSocket error for {player_id}: {e}")
-    finally:
-        await websocket.close()
+    """Enhanced WebSocket endpoint for terminal MUD interface"""
+    await enhanced_terminal_websocket(websocket, player_id)
 
 @app.post("/api/clearance/advance")
 async def request_clearance_advancement(employee_id: str):
