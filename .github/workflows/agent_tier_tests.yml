@@ -1,0 +1,280 @@
+name: Agent Tier Model Compatibility Tests
+
+on:
+  push:
+    branches: [ main, feature/*, agent-* ]
+    paths:
+      - 'agent_prompts_tiered.py'
+      - 'test_agent_tiers.py'
+      - 'agent_system.py'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'agent_prompts_tiered.py'
+      - 'test_agent_tiers.py'
+      - 'agent_system.py'
+
+jobs:
+  model-compatibility-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+        
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run Agent Tier Tests
+      run: |
+        cd backend
+        python -m pytest test_agent_tiers.py -v --cov=agent_prompts_tiered --cov-report=xml
+    
+    - name: Model Classification Validation
+      run: |
+        cd backend
+        python -c "
+        from agent_prompts_tiered import PromptSelector
+        
+        # Test Flash model classification
+        flash_models = [
+            'gemini-flash', 'gemini-1.5-flash', 'claude-3-haiku', 
+            'gpt-3.5-turbo', 'gpt-4o-mini', 'mixtral-8x7b'
+        ]
+        
+        for model in flash_models:
+            prompt = PromptSelector.get_prompt('liza', model)
+            assert len(prompt) < 2000, f'Flash model {model} returned Thinker tier prompt'
+            print(f'✓ {model} -> Flash tier (len: {len(prompt)})')
+        
+        # Test Thinker model classification  
+        thinker_models = [
+            'claude-3-opus', 'claude-3-sonnet', 'claude-3.5-sonnet',
+            'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gemini-pro', 'gemini-1.5-pro'
+        ]
+        
+        for model in thinker_models:
+            prompt = PromptSelector.get_prompt('liza', model)
+            assert len(prompt) > 2000, f'Thinker model {model} returned Flash tier prompt'
+            print(f'✓ {model} -> Thinker tier (len: {len(prompt)})')
+        
+        # Test unknown model fallback
+        unknown_prompt = PromptSelector.get_prompt('liza', 'unknown-model-xyz')
+        assert len(unknown_prompt) < 2000, 'Unknown model should fallback to Flash tier'
+        print('✓ Unknown model -> Flash tier fallback')
+        
+        print('All model classification tests passed!')
+        "
+    
+    - name: Flash Tier Validation
+      run: |
+        cd backend
+        python -c "
+        import sys
+        from test_agent_tiers import AgentTierTester
+        
+        tester = AgentTierTester()
+        flash_results = []
+        
+        # Simulate flash tier responses for validation
+        test_cases = [
+            'Hello, who are you?',
+            'I need help with an error',
+            'What are the storm drains?',
+            'How does assessment work?'
+        ]
+        
+        failed_tests = []
+        
+        for test_input in test_cases:
+            try:
+                response = tester._simulate_flash_response('liza', test_input)
+                word_count = tester.count_words(response)
+                metaphor_count = tester.count_metaphors(response)
+                has_actions = tester.has_action_notation(response)
+                
+                # Validate Flash tier constraints
+                if word_count > 100:
+                    failed_tests.append(f'{test_input}: {word_count} words (max 100)')
+                
+                if metaphor_count > 2:  # Allow some flexibility
+                    failed_tests.append(f'{test_input}: {metaphor_count} metaphors (max 2)')
+                
+                if not has_actions:
+                    print(f'Warning: {test_input} lacks action notation')
+                
+                print(f'✓ Flash tier test: {test_input[:30]}... ({word_count}w, {metaphor_count}m)')
+                
+            except Exception as e:
+                failed_tests.append(f'{test_input}: Exception {e}')
+        
+        if failed_tests:
+            print('Flash tier validation failures:')
+            for failure in failed_tests:
+                print(f'  ❌ {failure}')
+            sys.exit(1)
+        else:
+            print('All Flash tier validation tests passed!')
+        "
+    
+    - name: Thinker Tier Validation
+      run: |
+        cd backend
+        python -c "
+        import sys
+        from test_agent_tiers import AgentTierTester
+        
+        tester = AgentTierTester()
+        
+        test_cases = [
+            'Tell me about the true nature of this place',
+            'Why do you use animation metaphors?',
+            'What does the Orb mean to you?',
+            'I found something in the storm drains'
+        ]
+        
+        failed_tests = []
+        
+        for test_input in test_cases:
+            try:
+                response = tester._simulate_thinker_response('liza', test_input)
+                word_count = tester.count_words(response)
+                metaphor_count = tester.count_metaphors(response)
+                has_actions = tester.has_action_notation(response)
+                has_depth = '[[' in response
+                
+                # Validate Thinker tier richness
+                if word_count < 50:
+                    failed_tests.append(f'{test_input}: {word_count} words (min 50)')
+                
+                if metaphor_count < 2:
+                    failed_tests.append(f'{test_input}: {metaphor_count} metaphors (min 2)')
+                
+                if not has_actions:
+                    failed_tests.append(f'{test_input}: Missing action notation')
+                
+                if not has_depth and 'true nature' in test_input:
+                    failed_tests.append(f'{test_input}: Missing internal thoughts for deep question')
+                
+                print(f'✓ Thinker tier test: {test_input[:30]}... ({word_count}w, {metaphor_count}m, depth:{has_depth})')
+                
+            except Exception as e:
+                failed_tests.append(f'{test_input}: Exception {e}')
+        
+        if failed_tests:
+            print('Thinker tier validation failures:')
+            for failure in failed_tests:
+                print(f'  ❌ {failure}')
+            sys.exit(1)
+        else:
+            print('All Thinker tier validation tests passed!')
+        "
+    
+    - name: Character Consistency Check
+      run: |
+        cd backend
+        python -c "
+        import sys
+        from agent_prompts_tiered import LIZA_FLASH_PROMPT, LIZA_THINKER_PROMPT, VI_FLASH_PROMPT, VI_THINKER_PROMPT
+        
+        # Check for character name consistency
+        required_elements = {
+            'liza_flash': ['LIZA', 'Elizabeth Anderson', 'Investigation Specialist'],
+            'liza_thinker': ['LIZA', 'Elizabeth Anderson', 'Investigation Specialist', 'animation'],
+            'vi_flash': ['Vi', 'employee', 'peer'],
+            'vi_thinker': ['Vi', 'employee', 'peer', 'system']
+        }
+        
+        prompts = {
+            'liza_flash': LIZA_FLASH_PROMPT,
+            'liza_thinker': LIZA_THINKER_PROMPT,
+            'vi_flash': VI_FLASH_PROMPT,
+            'vi_thinker': VI_THINKER_PROMPT
+        }
+        
+        failed_checks = []
+        
+        for prompt_name, required in required_elements.items():
+            prompt_text = prompts[prompt_name]
+            for element in required:
+                if element.lower() not in prompt_text.lower():
+                    failed_checks.append(f'{prompt_name} missing required element: {element}')
+        
+        # Check Flash prompts are significantly shorter
+        if len(LIZA_FLASH_PROMPT) > len(LIZA_THINKER_PROMPT) * 0.3:
+            failed_checks.append(f'LIZA Flash prompt too long: {len(LIZA_FLASH_PROMPT)} vs {len(LIZA_THINKER_PROMPT)}')
+        
+        if len(VI_FLASH_PROMPT) > len(VI_THINKER_PROMPT) * 0.3:
+            failed_checks.append(f'Vi Flash prompt too long: {len(VI_FLASH_PROMPT)} vs {len(VI_THINKER_PROMPT)}')
+        
+        if failed_checks:
+            print('Character consistency check failures:')
+            for failure in failed_checks:
+                print(f'  ❌ {failure}')
+            sys.exit(1)
+        else:
+            print('✓ All character consistency checks passed!')
+            print(f'  LIZA Flash: {len(LIZA_FLASH_PROMPT)} chars')
+            print(f'  LIZA Thinker: {len(LIZA_THINKER_PROMPT)} chars')
+            print(f'  Vi Flash: {len(VI_FLASH_PROMPT)} chars')  
+            print(f'  Vi Thinker: {len(VI_THINKER_PROMPT)} chars')
+        "
+    
+    - name: Performance Baseline Check
+      run: |
+        cd backend
+        python -c "
+        import time
+        from agent_prompts_tiered import PromptSelector
+        
+        # Test prompt selection performance
+        models_to_test = [
+            'gemini-flash', 'claude-3-haiku', 'gpt-3.5-turbo',
+            'claude-3-opus', 'gpt-4', 'gemini-pro', 'unknown-model'
+        ]
+        
+        total_time = 0
+        for model in models_to_test:
+            start = time.time()
+            prompt = PromptSelector.get_prompt('liza', model)
+            elapsed = time.time() - start
+            total_time += elapsed
+            
+            if elapsed > 0.001:  # Should be nearly instantaneous
+                print(f'Warning: Prompt selection for {model} took {elapsed:.4f}s')
+            
+        avg_time = total_time / len(models_to_test)
+        print(f'✓ Average prompt selection time: {avg_time:.6f}s')
+        
+        if avg_time > 0.001:
+            print('Warning: Prompt selection slower than expected')
+        else:
+            print('✓ Prompt selection performance acceptable')
+        "
+    
+    - name: Upload Coverage Reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: agent-tiers
+        name: agent-tier-coverage
+        
+    - name: Notify on Failure
+      if: failure()
+      run: |
+        echo "Agent tier tests failed. Check the following:"
+        echo "1. Model classification logic in PromptSelector"
+        echo "2. Flash tier word/metaphor limits"
+        echo "3. Thinker tier complexity requirements"
+        echo "4. Character consistency across tiers"
+        echo "5. Performance baseline requirements"

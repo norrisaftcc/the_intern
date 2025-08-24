@@ -1,0 +1,137 @@
+{
+  "gemini-flash": {
+    "model_name": "gemini-flash",
+    "pass_rate": 100.0,
+    "avg_response_time": 0.8010737895965576,
+    "total_tests": 5,
+    "passed_tests": 5,
+    "deployment_ready": true,
+    "results": [
+      {
+        "test_name": "basic_greeting",
+        "passed": true,
+        "response_time": 0.8013641834259033,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "pattern_finding",
+        "passed": true,
+        "response_time": 0.8012499809265137,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "code_assistance",
+        "passed": true,
+        "response_time": 0.8012590408325195,
+        "word_count": 31,
+        "character_score": 0.8333333333333334
+      },
+      {
+        "test_name": "creative_explanation",
+        "passed": true,
+        "response_time": 0.8002769947052002,
+        "word_count": 34,
+        "character_score": 0.5
+      },
+      {
+        "test_name": "discovery_excitement",
+        "passed": true,
+        "response_time": 0.8012187480926514,
+        "word_count": 26,
+        "character_score": 0.6666666666666666
+      }
+    ]
+  },
+  "claude-haiku": {
+    "model_name": "claude-haiku",
+    "pass_rate": 100.0,
+    "avg_response_time": 1.2011414051055909,
+    "total_tests": 5,
+    "passed_tests": 5,
+    "deployment_ready": true,
+    "results": [
+      {
+        "test_name": "basic_greeting",
+        "passed": true,
+        "response_time": 1.2011210918426514,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "pattern_finding",
+        "passed": true,
+        "response_time": 1.2010719776153564,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "code_assistance",
+        "passed": true,
+        "response_time": 1.2011678218841553,
+        "word_count": 31,
+        "character_score": 0.8333333333333334
+      },
+      {
+        "test_name": "creative_explanation",
+        "passed": true,
+        "response_time": 1.2011401653289795,
+        "word_count": 34,
+        "character_score": 0.5
+      },
+      {
+        "test_name": "discovery_excitement",
+        "passed": true,
+        "response_time": 1.2012059688568115,
+        "word_count": 26,
+        "character_score": 0.6666666666666666
+      }
+    ]
+  },
+  "gpt-3.5-turbo": {
+    "model_name": "gpt-3.5-turbo",
+    "pass_rate": 100.0,
+    "avg_response_time": 1.5011532783508301,
+    "total_tests": 5,
+    "passed_tests": 5,
+    "deployment_ready": true,
+    "results": [
+      {
+        "test_name": "basic_greeting",
+        "passed": true,
+        "response_time": 1.501133918762207,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "pattern_finding",
+        "passed": true,
+        "response_time": 1.5011956691741943,
+        "word_count": 31,
+        "character_score": 0.6666666666666666
+      },
+      {
+        "test_name": "code_assistance",
+        "passed": true,
+        "response_time": 1.5011677742004395,
+        "word_count": 31,
+        "character_score": 0.8333333333333334
+      },
+      {
+        "test_name": "creative_explanation",
+        "passed": true,
+        "response_time": 1.5010709762573242,
+        "word_count": 34,
+        "character_score": 0.5
+      },
+      {
+        "test_name": "discovery_excitement",
+        "passed": true,
+        "response_time": 1.5011980533599854,
+        "word_count": 26,
+        "character_score": 0.6666666666666666
+      }
+    ]
+  }
+}
