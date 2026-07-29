@@ -13,3 +13,4 @@ projects/.DS_Store
 *.pyc
 .DS_Store
 .DS_Store
+projects/algocratic-futures/.env.local
