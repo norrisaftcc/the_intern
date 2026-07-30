@@ -152,13 +152,22 @@ def words(text: str) -> int:
     return len(text.split())
 
 
+def read_utf8(path: Path) -> str:
+    """Read a file as UTF-8, never the platform default.
+
+    Persona files and captured transcripts carry emoji and em dashes, so a
+    cp1252 default would raise UnicodeDecodeError instead of running the test.
+    """
+    return path.read_text(encoding="utf-8")
+
+
 def load_docs() -> list[Doc]:
     docs: list[Doc] = []
     for path in sorted(AGENT_DIR.glob("*.md")):
-        fm, body, offset = parse_frontmatter(path.read_text(), path)
+        fm, body, offset = parse_frontmatter(read_utf8(path), path)
         docs.append(Doc(path, "agent", fm, body, offset))
     for path in sorted(SKILL_DIR.glob("*/SKILL.md")):
-        fm, body, offset = parse_frontmatter(path.read_text(), path)
+        fm, body, offset = parse_frontmatter(read_utf8(path), path)
         docs.append(Doc(path, "skill", fm, body, offset))
     return docs
 
@@ -295,7 +304,7 @@ def check_cases(doc: Doc) -> None:
         doc.fail("cases", f"no behavioral cases at {path.relative_to(REPO)}")
         return
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(read_utf8(path))
     except json.JSONDecodeError as exc:
         doc.fail("cases", f"{path.name} is not valid JSON: {exc}")
         return
@@ -331,7 +340,15 @@ def check_baseline() -> list[Finding]:
     record_path = BASELINE_DIR / "RECORD.json"
     if not record_path.exists():
         return [Finding(BASELINE_DIR, "baseline", "RECORD.json is missing")]
-    record = json.loads(record_path.read_text())
+    # The record is the harness's own source of truth, so a defect in it is
+    # reported as a finding rather than raised as a traceback.
+    try:
+        record = json.loads(read_utf8(record_path))
+    except json.JSONDecodeError as exc:
+        return [Finding(record_path, "baseline", f"RECORD.json is not valid JSON: {exc}")]
+    missing = [key for key in ("file", "sha256") if not record.get(key)]
+    if missing:
+        return [Finding(record_path, "baseline", f"RECORD.json has no {' or '.join(missing)}")]
     target = BASELINE_DIR / record["file"]
     if not target.exists():
         return [Finding(record_path, "baseline", f"recorded file {record['file']} is missing")]
@@ -405,8 +422,8 @@ def score(transcript: Path, persona: str, case_id: str | None) -> int:
         print(f"no transcript at {transcript}", file=sys.stderr)
         return 1
 
-    text = transcript.read_text()
-    cases = json.loads(case_path.read_text()).get("cases", [])
+    text = read_utf8(transcript)
+    cases = json.loads(read_utf8(case_path)).get("cases", [])
     if case_id:
         cases = [c for c in cases if c.get("id") == case_id]
         if not cases:
