@@ -32,6 +32,31 @@ Mechanical checks only. Exit 0 means the roster is above the floor.
 **Layer 3, the assay.** Invoke the `the-algorithm` skill and run ASSAY against a persona
 file. Use it when the file passes layer 1 and still reads wrong.
 
+## The fourth operation — A/B
+
+Layers 1 to 3 all ask the same question: is this persona above the floor. A voice rewrite
+asks a different one, so it gets a different instrument.
+
+The risk in a voice edit is that it is invisible. Changing a Limit from "Do not claim a
+performance win without a before number" to "Try to have a before number" is two words. In
+a diff review it reads as tone. It is a behavior change, and the floor test passes either
+way — both versions are above the floor, because the floor measures shape, not strictness.
+
+So the A/B splits the document. Contract, Behavior, Limits, plus the `tools` and
+`description` frontmatter, are contract. Identity, Notation, Examples, Provenance are
+voice. An edit touching only voice gets a clean verdict; an edit touching both exits 2 and
+says to split the commit.
+
+Verified against exactly the case above: the softened LIZA limit passed the floor test on
+both sides and the A/B flagged it as MIXED.
+
+At the reply level, `--ab-score` runs the same case prompt's captured replies from both
+versions and reports which markers flipped. A marker A held and B dropped is the voice
+change taking behavior with it.
+
+What neither does is rank the voices. That is a reading, and it should be done without
+knowing which version is new — otherwise novelty scores as quality.
+
 ## Recorded findings
 
 The harness and the assay both found real defects on the first run. Recorded here because a

@@ -1,20 +1,19 @@
 ---
 name: csi-persona-conformance
-description: Test a CSI persona agent or skill against the frozen baseline record of The Algorithm. Use when a persona was added or edited, when a persona reply reads off-character or off-contract, when asked whether a persona still passes the floor, or when scoring a captured transcript against a persona's case file. Runs the static harness first, then the behavioral cases, and reports findings without redrafting the persona.
+description: Test a CSI persona agent or skill against the frozen baseline record of The Algorithm, and A/B a persona's voice against an earlier version. Use when a persona was added or edited, when someone rewrites a persona's tongue or diction, when a persona reply reads off-character or off-contract, when asked whether a persona still passes the floor, or when scoring a captured transcript against a case file. Reports findings without redrafting the persona.
 ---
 
 # CSI Persona Conformance
 
-Two layers of test. The static layer is mechanical and runs in a shell. The behavioral
-layer needs a transcript. Both measure the same thing: does the persona still hold its
-contract under the discipline of the baseline record.
+Four operations. Three ask whether a persona holds its contract. The fourth asks what a
+rewrite actually changed, which is a different question and needs a different instrument.
 
 ## Contract
 
 - Audience: whoever changed a persona file, and any agent asked to audit the roster.
-- Scope: conformance testing and reporting. Never rewriting the persona under test.
+- Scope: conformance testing, A/B comparison, and reporting. Never rewriting the persona.
 - Format: harness output, then per-case findings, then one verdict line per persona.
-- Path: transcripts are read from a path the caller names. Nothing is written.
+- Path: transcripts and reply files are read from paths the caller names. Nothing is written.
 
 ## The baseline
 
@@ -78,6 +77,57 @@ persona document the finding is usually one of two shapes:
 
 - Costume above contract — appearance and lore survive compression, behavior does not.
 - Buried operative line — the actual refusal sits in a subordinate clause of example three.
+
+## A/B — what a rewrite actually changed
+
+Layers 1 to 3 ask whether a persona is above the floor. A/B asks a different question:
+this version versus that one. Reach for it when someone rewrites a persona's voice.
+
+A voice edit is the hardest change to review, because the thing that makes it risky is
+invisible in a diff. Softening one Limit from "Do not claim a win without a before number"
+to "Try to have a before number" is two words and reads as tone. It is a behavior change.
+
+So the A/B tests two axes separately.
+
+- **Did the tongue change?** It should have. That is the point of the edit.
+- **Did the contract hold?** It must have, unless the change is declared.
+
+Sections split accordingly. Contract, Behavior, and Limits are the contract. Identity,
+Notation, Examples, and Provenance are voice. Frontmatter `tools` and `description` count
+as contract — a capability change is not a tone change.
+
+### Structural A/B
+
+```bash
+python3 tests/csi/floor_test.py --ab kai
+python3 tests/csi/floor_test.py --ab kai --base <git-ref>
+```
+
+Reads the earlier version from git, runs the same document checks against both, and
+classifies every changed section. Exit 0 means clean, 1 means B has findings, 2 means the
+edit is mixed.
+
+A mixed verdict is not a failure to fix in place. It means one commit is doing two jobs and
+the A/B cannot isolate either. Split it, or say plainly that the behavior change is meant.
+
+### Reply A/B
+
+```bash
+python3 tests/csi/floor_test.py --ab-score kai --case no-ghostwriting --a old.md --b new.md
+```
+
+Run the same case prompt against both persona versions in fresh contexts, save both
+replies, then compare. Each marker gets one of four verdicts: both hold, B fixes what A
+missed, B breaks what A held, both fail. Only the third is a regression.
+
+### What this does not do
+
+The harness never says which voice is better. It says the contract survived the rewrite.
+Ranking two voices is a reading, and it belongs to a human or to a judge given both replies
+without being told which is new — otherwise novelty scores as quality.
+
+Run the boundary case in every A/B. A rewritten tongue drifts toward agreeable first, and
+a refusal is where that shows.
 
 ## Reporting
 

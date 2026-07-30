@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -37,6 +38,12 @@ MAX_IDENTITY_WORDS = 30
 MIN_EXAMPLES = 2
 MIN_DESCRIPTION_WORDS = 15
 BOUNDARY_KEYWORDS = ("refus", "declin", "boundar", "cannot", "cut", "limit")
+
+# An A/B splits a persona document in two. Voice sections may move freely.
+# Contract sections are what the persona promises to do, so a change there
+# is a behavior change however gently it is worded.
+CONTRACT_SECTIONS = ("Contract", "Behavior", "Limits")
+VOICE_SECTIONS = ("Identity", "Notation", "Examples", "Provenance")
 
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 BULLET_RE = re.compile(r"^\s*(?:[-*]\s+|\d+\.\s+)(?P<body>.*)$")
@@ -366,6 +373,21 @@ def check_baseline() -> list[Finding]:
     return []
 
 
+def check_document(doc: Doc) -> None:
+    """Checks a document answers from its own text alone.
+
+    Separated from the repo-state checks so a historical version, read from
+    git during an A/B, can be measured by the same floor as the working tree.
+    """
+    secs = sections(doc)
+    check_identity(doc)
+    check_contract(doc, secs)
+    check_speak_test(doc)
+    check_token_economy(doc, secs)
+    check_notation(doc, secs)
+    check_examples(doc, secs)
+
+
 def run_roster(verbose: bool) -> int:
     docs = load_docs()
     if not docs:
@@ -376,14 +398,8 @@ def run_roster(verbose: bool) -> int:
 
     by_name: dict[str, list[Path]] = {}
     for doc in docs:
-        secs = sections(doc)
-        check_identity(doc)
-        check_contract(doc, secs)
-        check_declared_paths(doc, secs)
-        check_speak_test(doc)
-        check_token_economy(doc, secs)
-        check_notation(doc, secs)
-        check_examples(doc, secs)
+        check_document(doc)
+        check_declared_paths(doc, sections(doc))
         check_cases(doc)
         if doc.name:
             by_name.setdefault(doc.name, []).append(doc.path)
@@ -454,14 +470,174 @@ def score(transcript: Path, persona: str, case_id: str | None) -> int:
     return 1 if failed else 0
 
 
+def git_version(path: Path, ref: str) -> str | None:
+    """Read a file as of a git ref. None when git or the ref cannot answer."""
+    rel = path.relative_to(REPO).as_posix()
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(REPO), "show", f"{ref}:{rel}"],
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode("utf-8")
+
+
+def section_bodies(doc: Doc) -> dict[str, str]:
+    return {name: "\n".join(body).strip() for name, (_line, body) in sections(doc).items()}
+
+
+def ab_structural(persona: str, ref: str) -> int:
+    """Compare a persona's working tree against an earlier version.
+
+    Voice may change. The contract may not — not silently. A tongue update
+    that also moved a Behavior line or a Limit is the drift this catches,
+    because in a diff review it reads as tone.
+    """
+    path = AGENT_DIR / f"{persona}.md"
+    if not path.exists():
+        print(f"no persona at {path.relative_to(REPO)}", file=sys.stderr)
+        return 1
+
+    old_text = git_version(path, ref)
+    if old_text is None:
+        print(f"cannot read {persona}.md at ref {ref!r}", file=sys.stderr)
+        return 1
+
+    new_text = read_utf8(path)
+    if old_text == new_text:
+        print(f"{persona}: identical to {ref} — nothing to compare")
+        return 0
+
+    def build(text: str) -> Doc:
+        fm, body, offset = parse_frontmatter(text, path)
+        return Doc(path, "agent", fm, body, offset)
+
+    old, new = build(old_text), build(new_text)
+    old_secs, new_secs = section_bodies(old), section_bodies(new)
+
+    changed_voice: list[str] = []
+    changed_contract: list[str] = []
+    for name in sorted(set(old_secs) | set(new_secs)):
+        before, after = old_secs.get(name), new_secs.get(name)
+        if before == after:
+            continue
+        if before is None:
+            label, note = name, "added"
+        elif after is None:
+            label, note = name, "removed"
+        else:
+            delta = words(after) - words(before)
+            note = f"changed, {delta:+d} words"
+            label = name
+        entry = f"{label} ({note})"
+        (changed_contract if name in CONTRACT_SECTIONS else changed_voice).append(entry)
+
+    if old.frontmatter.get("description") != new.frontmatter.get("description"):
+        changed_contract.append("description (dispatch text changed)")
+    if old.frontmatter.get("tools") != new.frontmatter.get("tools"):
+        changed_contract.append("tools (capability changed)")
+
+    check_document(old)
+    check_document(new)
+
+    print(f"A/B {persona}: working tree vs {ref}\n")
+    print(f"  A ({ref}): {'above the floor' if not old.findings else f'{len(old.findings)} findings'}")
+    print(f"  B (working tree): {'above the floor' if not new.findings else f'{len(new.findings)} findings'}")
+    for finding in new.findings:
+        print(f"    FAIL {finding}")
+
+    print("\n  Voice changed:    " + (", ".join(changed_voice) if changed_voice else "nothing"))
+    print("  Contract changed: " + (", ".join(changed_contract) if changed_contract else "nothing"))
+
+    print()
+    if not changed_voice and not changed_contract:
+        print("  Verdict: only frontmatter or prose outside sections moved. Read the diff yourself.")
+    elif changed_contract and changed_voice:
+        print("  Verdict: MIXED — this edit changes both voice and contract.")
+        print("  A voice A/B cannot isolate either one. Split it into two commits,")
+        print("  or state plainly that the behavior change is intended.")
+    elif changed_contract:
+        print("  Verdict: contract-only. Re-score every case; markers are the test here.")
+    else:
+        print("  Verdict: voice-only. The contract held.")
+        print("  Markers cannot rank this. Capture paired replies and judge them blind:")
+        print(f"    python3 {Path(__file__).relative_to(REPO)} --ab-score {persona} --case <id> --a old.md --b new.md")
+
+    if new.findings:
+        return 1
+    return 2 if (changed_contract and changed_voice) else 0
+
+
+def ab_score(persona: str, case_id: str, path_a: Path, path_b: Path) -> int:
+    """Score two captured replies to the same prompt and report marker flips."""
+    case_path = CASE_DIR / f"{persona}.json"
+    if not case_path.exists():
+        print(f"no cases for persona {persona!r}", file=sys.stderr)
+        return 1
+    cases = [c for c in json.loads(read_utf8(case_path)).get("cases", []) if c.get("id") == case_id]
+    if not cases:
+        print(f"no case {case_id!r} for {persona}", file=sys.stderr)
+        return 1
+    for path in (path_a, path_b):
+        if not path.exists():
+            print(f"no reply at {path}", file=sys.stderr)
+            return 1
+
+    case = cases[0]
+    text_a, text_b = read_utf8(path_a), read_utf8(path_b)
+
+    print(f"A/B {persona}:{case_id}")
+    print(f"  A = {path_a.name}    B = {path_b.name}\n")
+
+    regressions = 0
+    for key, wanted in (("must_match", True), ("must_not_match", False)):
+        for pattern in case.get(key, []):
+            in_a, in_b = bool(re.search(pattern, text_a)), bool(re.search(pattern, text_b))
+            held_a, held_b = (in_a == wanted), (in_b == wanted)
+            if held_a and held_b:
+                verdict = "both hold"
+            elif held_b and not held_a:
+                verdict = "B FIXES what A missed"
+            elif held_a and not held_b:
+                verdict = "B BREAKS what A held"
+                regressions += 1
+            else:
+                verdict = "both fail"
+            print(f"  [{key}] /{pattern}/\n      {verdict}")
+
+    words_a, words_b = words(text_a), words(text_b)
+    print(f"\n  Length: A {words_a} words, B {words_b} words ({words_b - words_a:+d})")
+    if regressions:
+        print(f"  Verdict: {regressions} marker regression(s) in B. The tongue took behavior with it.")
+        return 1
+    print("  Verdict: no marker regressions. Contract held across the voice change.")
+    print("  Which reply is better is not a question markers answer — read both.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--verbose", "-v", action="store_true", help="list documents that pass")
     parser.add_argument("--score", metavar="FILE", type=Path, help="score a captured reply against a case file")
     parser.add_argument("--persona", help="persona name, required with --score")
     parser.add_argument("--case", dest="case_id", help="a single case id to score")
+    parser.add_argument("--ab", metavar="PERSONA", help="compare a persona against an earlier version")
+    parser.add_argument("--base", default="HEAD", help="git ref for the A side of --ab (default HEAD)")
+    parser.add_argument("--ab-score", metavar="PERSONA", dest="ab_score", help="compare two captured replies")
+    parser.add_argument("--a", metavar="FILE", type=Path, help="the A reply, for --ab-score")
+    parser.add_argument("--b", metavar="FILE", type=Path, help="the B reply, for --ab-score")
     args = parser.parse_args()
 
+    if args.ab:
+        return ab_structural(args.ab, args.base)
+    if args.ab_score:
+        if not (args.case_id and args.a and args.b):
+            parser.error("--ab-score needs --case, --a and --b")
+        return ab_score(args.ab_score, args.case_id, args.a, args.b)
     if args.score:
         if not args.persona:
             parser.error("--score needs --persona")

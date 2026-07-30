@@ -26,6 +26,25 @@ python3 tests/csi/floor_test.py --score reply.md --persona kai --case no-ghostwr
 Markers are evidence that the persona held its shape. They are not a quality score — read
 the reply yourself. The refusal cases are the ones that matter; drift shows up there first.
 
+## A/B a voice change
+
+When a persona's tongue is rewritten, the question is not "does it pass" but "what did the
+rewrite change". Two commands:
+
+```bash
+python3 tests/csi/floor_test.py --ab kai                    # working tree vs HEAD
+python3 tests/csi/floor_test.py --ab kai --base <git-ref>   # vs any earlier version
+python3 tests/csi/floor_test.py --ab-score kai --case no-ghostwriting --a old.md --b new.md
+```
+
+The first classifies every changed section as voice or contract. Exit 2 means the edit
+changed both, so it needs splitting before either can be judged.
+
+The second compares two captured replies to the same case prompt. A marker that A held and
+B dropped is a regression — the voice change took behavior with it.
+
+Neither says which voice is better. That reading is yours.
+
 ## Layout
 
 ```
