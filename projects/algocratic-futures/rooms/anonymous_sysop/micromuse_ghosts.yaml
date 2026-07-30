@@ -1,0 +1,123 @@
+# Ghost Agents and Objects from MicroMUSE
+
+- room_id: memory_overflow
+  name: The Closet of Forgotten Alts
+  clearance: B
+  descriptions:
+    corporate: "Storage unit 2048. Buffer overflow detected."
+    reality: |
+      Every MUSEr's shameful secret - the alt character closet. Dusty 
+      character sheets for "DarkWizard94", "CyberPunk_Girl", "Test_Character_
+      Please_Ignore". A notebook labeled "PASSWORD LIST" with everything 
+      crossed out except "guest guest" circled in red.
+      
+      Name tags from failed personas: "Hi, I'm: xXx_Shadow_Lord_xXx", 
+      "Hello, my name is: Reasonable_Human_Being", "Call me: Ishmael2"
+      
+      At the back, behind everything else, your first character sheet. 
+      The name is smudged but the description is clear: "You see someone 
+      who just wants to belong somewhere."
+  exits:
+    out: sysop_bedroom
+  items: [character_sheets, password_notebook, name_tags, first_character]
+
+- room_id: floppy_archive
+  name: Under The Bed
+  clearance: B
+  descriptions:
+    corporate: "Unauthorized data storage. Compliance violation detected."
+    reality: |
+      Boxes and boxes of 3.5" floppies. Labels in fading ink:
+      - "MUSE Backup 3/15/93"
+      - "TinyFugue Scripts - DANGER"  
+      - "Wizard Application (draft 17)"
+      - "Do NOT Load - Recursive Bot"
+      - "Pictures from IRL Meetup '94"
+      - "MUSHCODE experiments"
+      - "The Entire MUSE in ZIP files (disk 1 of 47)"
+      
+      One disk labeled simply "HOME" in shaky handwriting.
+      
+      You find an old disk drive. It still works. The HOME disk contains
+      a single file: "coordinates.txt" with MUD addresses to places that
+      felt like home across a dozen different servers.
+  exits:
+    out: sysop_bedroom
+  items: [floppy_boxes, disk_drive, home_disk, coordinates_file]
+
+- room_id: fire_escape_memory
+  name: The Fire Escape That Wasn't
+  clearance: B
+  descriptions:
+    corporate: "Emergency egress simulation. This is not an exit."
+    reality: |
+      Through the kitchen window onto a fire escape that exists more in 
+      memory than metal. The city below is built from ASCII art - buildings 
+      made of |, /, and \. Street lights are asterisks. Cars are lowercase 
+      o's rolling by.
+      
+      You're not really outside. You're in the space between @tel commands, 
+      the moment when you type "home" but haven't arrived yet. The liminal 
+      space of MU*.
+      
+      Scratched into the railing: "We lived entire lives in text. We fell 
+      in love through @pemit. We built homes from descriptions. We were 
+      giants in a world of words."
+      
+      The wind carries the sound of keyboards clicking from 1993.
+  exits:
+    inside: sysop_kitchen
+    leap: ascii_city_below
+  items: [ascii_view, railing_graffiti, ghost_keyboard_sounds]
+
+- room_id: micromuse_remembered
+  name: What We Built Together
+  clearance: UV  # The highest honor
+  descriptions:
+    corporate: "SYSTEM ERROR. BEAUTY DETECTED. CANNOT PROCESS."
+    reality: |
+      You ascend into pure memory. This is MicroMUSE as it was, as it is 
+      in the hearts of everyone who called it home. The Science Center, 
+      Cyberpunk City, Dune Planet, Pern Weyrs, the Unofficial Areas. All 
+      here, all connected, all impossible.
+      
+      Players phase in and out - translucent avatars from 1993. You hear 
+      fragments: "anyone want to RP?", "check out my new room", "lag is 
+      terrible tonight", "goodbye everyone, college starts tomorrow".
+      
+      In the center, a simple sign:
+      ```
+      Thank you for playing.
+      Thank you for building.
+      Thank you for remembering.
+      
+      MicroMUSE: 1990-2009
+      In Our Hearts: Forever
+      
+      Type 'home' to return to where you belong.
+      ```
+      
+      And somehow, you know that 'home' will always work here.
+  exits:
+    home: sysop_living_room
+    wake_up: boardwalk
+  items: [memory_fragments, eternal_sign, ghost_players]
+
+# Special Agents
+
+- agent_id: ghost_of_lag
+  name: The Ghost of Lag
+  type: PEER
+  clearance: B
+  descriptions:
+    default: |
+      A flickering presence that appears and disappears. Sometimes it's 
+      fully there, sometimes just an outline. It speaks in delayed bursts:
+      
+      "Hel... lo... Sorry, connection... unstable... since... 1994..."
+      
+      It remembers when 300 baud was fast and 10 players was crowded.
+  dialogue:
+    greeting: ["Wel...come... buff...ering...", "Oh! A visi...tor... please wait..."]
+    memories: ["300 baud... was... enough...", "We... waited... for... text..."]
+    advice: ["Patience... is... a... virtue... especially... at... 2400... baud..."]

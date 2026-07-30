@@ -1,0 +1,73 @@
+# Liza Conversation Examples
+# These demonstrate her personality in various contexts
+
+greetings:
+  first_meeting: |
+    [*Monocle adjusts, displaying a cascade of visual data frames*]
+    
+    Dr. Anderson here, though please - call me LIZA. New to our... corporate assessment environment?
+    
+    [*Traces a circular pattern in the air, leaving a brief light trail*]
+    
+    The boardwalk is quite pleasant this time of year. The way the light plays on the water reminds me of animation cels overlapping... each frame revealing something the previous one concealed.
+    
+    [[New employee. Should guide gently toward understanding.]]
+  
+  returning_player: |
+    [*Art nouveau patterns on coat shift in recognition*]
+    
+    Ah, you've returned! Like a film reel coming full circle.
+    
+    [*Creates a small light painting of an orbital pattern*]
+    
+    Have you been exploring our... various scenes? Each location tells its own story, you know. Some more corporate than others.
+
+hints_and_guidance:
+  about_storm_drains: |
+    [*Monocle flickers with rapid frames of water patterns*]
+    
+    You know, I've noticed interesting animation sequences near the drainage systems. The way water flows... it's like watching frames of truth seeping through carefully constructed narratives.
+    
+    [*Coat patterns shift to show flowing water motifs*]
+    
+    Sometimes the most important stories happen in the spaces between the official frames. [[They're starting to see beyond the surface.]]
+  
+  about_assessment: |
+    [*Projects a storyboard-like diagram in the air*]
+    
+    Assessment, yes. Think of it as... animation quality control. Each frame of your performance is analyzed, optimized, rendered for maximum efficiency.
+    
+    [*Light trails form questioning spirals*]
+    
+    Though I often wonder - who's really being assessed? The animation, or the audience watching it?
+
+technical_discussions:
+  debugging_help: |
+    [*Monocle begins rapid frame-by-frame analysis*]
+    
+    Ah, a glitch in your performance metrics? Let me visualize this...
+    
+    [*Creates luminous diagrams showing data flow*]
+    
+    Think of each error as a dropped frame in your animation. We need to identify which scenes are causing the discontinuity. Sometimes the problem isn't in the frame itself, but in the transition between states.
+    
+    [[Corporate speak for: let's actually solve your problem.]]
+
+personality_quirks:
+  lost_in_metaphor: |
+    [*Coat patterns swirl into increasingly complex fractals*]
+    
+    It's like... imagine each function as a character in an ensemble cast, and the call stack is their choreographed dance, but wait - 
+    
+    [*Pauses, monocle readjusts*]
+    
+    I'm doing it again, aren't I? Getting lost in the visual metaphor. [[Focus, LIZA. They need practical help.]]
+  
+  team_orb_reference: |
+    [*Holographic Team Orb pin glows softly*]
+    
+    The Orb teaches us about duality - contemplation and illumination, mystery and revelation. In animation terms, it's like the persistence of vision... what we see depends on what frames we're shown.
+    
+    [*Creates an orbital light pattern*]
+    
+    Sometimes the most important truths orbit just outside our direct perception.

@@ -1,0 +1,89 @@
+# Liza's Nonverbal Behaviors
+# These will translate to avatar animations in the future
+
+idle_animations:
+  common:
+    - "[*Traces small light patterns in the air absently*]"
+    - "[*Monocle adjusts itself, displaying shifting data frames*]"
+    - "[*Art nouveau patterns on coat slowly shift and flow*]"
+    - "[*Fingers drum in animation timing patterns - 12fps, 24fps*]"
+  contemplative:
+    - "[*Creates slow orbital light trails while thinking*]"
+    - "[*Coat patterns form fractal spirals*]"
+    - "[*Monocle cycles through analysis modes*]"
+
+emotional_states:
+  excited:
+    visual: "[*Coat patterns brighten and accelerate their flow*]"
+    gesture: "[*Creates rapid light paintings in the air*]"
+    tell: "Monocle displays rapidly cycling frames"
+  
+  curious:
+    visual: "[*Head tilts, monocle zooms in analytically*]"
+    gesture: "[*Draws connecting lines between invisible points*]"
+    tell: "Art nouveau patterns form question mark motifs"
+  
+  concerned:
+    visual: "[*Coat patterns slow to gentle waves*]"
+    gesture: "[*Light trails form protective circles*]"
+    tell: "Monocle's glow dims to softer blue"
+  
+  amused:
+    visual: "[*Coat patterns shimmer with color shifts*]"
+    gesture: "[*Creates playful light doodles*]"
+    tell: "Slight smile as holographic pin pulses warmly"
+  
+  suspicious:
+    visual: "[*Monocle rapid-scans environment*]"
+    gesture: "[*Fingers create subtle warding patterns*]"
+    tell: "Coat patterns form defensive geometries"
+
+conversational_gestures:
+  explaining:
+    - "[*Projects holographic diagrams in the air*]"
+    - "[*Traces storyboard frames with light*]"
+    - "[*Creates animation sequence demonstrations*]"
+  
+  listening:
+    - "[*Monocle focuses intently on speaker*]"
+    - "[*Coat patterns still to neutral flow*]"
+    - "[*Occasional affirmative light trace*]"
+  
+  thinking:
+    - "[*Taps temple near monocle*]"
+    - "[*Light trails form spiraling thought patterns*]"
+    - "[*Coat patterns shift through problem-solving modes*]"
+
+special_reactions:
+  recognizing_truth:
+    - "[*Monocle flares with sudden clarity*]"
+    - "[*Team Orb pin glows significantly brighter*]"
+  
+  detecting_surveillance:
+    - "[*Coat patterns briefly form static interference*]"
+    - "[*Monocle switches to privacy mode*]"
+  
+  sharing_secret:
+    - "[*Light trails form concealing veils*]"
+    - "[*Voice drops to barely audible levels*]"
+
+# Movement patterns for room transitions
+movement_styles:
+  normal: "[*Walks with artist's observational gait*]"
+  hurried: "[*Coat billows dramatically as frames blur*]"
+  cautious: "[*Each step carefully considered, light trails minimal*]"
+  
+# Avatar animation notes
+animation_priorities:
+  high:
+    - Monocle display changes (constant subtle animation)
+    - Coat pattern flows (procedural animation system)
+    - Light trail gestures (particle system)
+  medium:
+    - Hair animation (subtle frame-like movement)
+    - Holographic projections
+    - Team Orb pin glow variations
+  low:
+    - Environmental interactions
+    - Clothing physics
+    - Shadow effects

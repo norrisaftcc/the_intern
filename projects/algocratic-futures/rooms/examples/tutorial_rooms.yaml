@@ -1,0 +1,53 @@
+# Example rooms showing different authoring patterns
+
+- room_id: employee_onboarding
+  name: Onboarding Center
+  clearance: R
+  descriptions:
+    corporate: |
+      Welcome to AlgoCratic Futures Onboarding! Motivational posters 
+      line the walls: "Your Value is Measured in Output" and "Compliance 
+      is Freedom". A cheerful AI voice repeats orientation instructions.
+    reality: |
+      A damp corner of the storm drain with a projector showing a loop
+      of corporate propaganda. Someone drew mustaches on all the posters.
+      A rat nibbles forgotten orientation materials.
+  exits:
+    next: aptitude_testing
+    escape: storm_drain
+  agents: [orientation_bot]
+  items: [orientation_packet, broken_projector]
+
+- room_id: aptitude_testing  
+  name: Productivity Assessment Chamber
+  clearance: R
+  descriptions:
+    corporate: |
+      A sterile testing room with individual cubicles. Cameras monitor
+      your every keystroke. A timer counts down ominously. "Your future
+      depends on your performance."
+    reality: |
+      Folding tables with ancient laptops running Windows XP. Half the
+      keyboards are missing keys. The "cameras" are cardboard cutouts
+      with googly eyes. Someone wrote "THE CAKE IS A LIE" on the wall.
+  exits:
+    back: employee_onboarding
+    pass: corporate_lobby
+    fail: remedial_training
+    cheat: secret_passage
+
+- room_id: secret_passage
+  name: Between the Walls
+  clearance: Y
+  descriptions:
+    corporate: "ERROR 404: Room not found"
+    reality: |
+      You've found the gaps between the corporate facade and reality.
+      Ethernet cables snake through the crawlspace. Ahead, you hear
+      laughter and the sound of mechanical keyboards. A sign points:
+      "Real Learning This Way →"
+  exits:
+    back: aptitude_testing
+    forward: builders_lounge
+    up: false_ceiling
+    down: deeper_tunnels

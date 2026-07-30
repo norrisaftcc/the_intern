@@ -1,0 +1,174 @@
+# Symmetrical Connection Architecture
+# Entry (Arcade) ←→ Heart (Storm Drains) ←→ Backstage (Sysop Apartment)
+
+# === ENTRY CONNECTIONS ===
+
+- room_id: arcade_basement_expanded
+  name: Arcade Basement (Connection Hub)
+  clearance: G
+  descriptions:
+    corporate: "Sub-level maintenance and storage."
+    reality: |
+      The arcade basement has THREE tunnels:
+      - EAST: To the Storm Drain Gallery (main game)
+      - WEST: To the Builder's Lounge (creative space)
+      - DOWN: To the Backbone (deep infrastructure)
+      
+      A diagram on the wall shows the symmetry:
+      ```
+      [ENTRY]          [HEART]           [BACKSTAGE]
+      Arcade  -------> Storm  <-------- Sysop Apt
+      (Learn)         Drains           (Remember)
+                      (Play)
+      ```
+  exits:
+    up: prize_counter_storage
+    east: storm_drain_gallery
+    west: builders_lounge
+    down: the_backbone_junction
+
+# === HEART OF THE GAME ===
+
+- room_id: storm_drain_nexus
+  name: The Nexus
+  clearance: G
+  descriptions:
+    corporate: "Central routing error. Multiple realities detected."
+    reality: |
+      The true heart of the storm drain system. Three major passages:
+      
+      SUNRISE TUNNEL (East): Echoes of arcade music and new player 
+      excitement. Fresh air and possibility. "BEGIN HERE" in LED strips.
+      
+      SUNSET TUNNEL (West): The scent of old electronics and coffee.
+      Whispers of code from the 90s. "BUILDERS WELCOME" in green phosphor.
+      
+      THE SPIRAL (Down): Where both tunnels eventually lead. The deeper 
+      game where tutorial becomes memory becomes creation.
+      
+      A maintenance log reads: "The new players come from sunrise, the 
+      old wizards return at sunset. They meet in the depths."
+  exits:
+    sunrise: arcade_secret_tunnel
+    sunset: apartment_service_tunnel
+    spiral: deep_storm_drains
+    up: storm_drain_gallery
+
+# === BACKSTAGE CONNECTIONS ===
+
+- room_id: apartment_service_tunnel
+  name: Service Tunnel 127.0.0.1
+  clearance: B
+  descriptions:
+    corporate: "Unauthorized residential infrastructure access."
+    reality: |
+      A service tunnel that shouldn't exist, connecting the sysop's 
+      apartment to the storm drain network. Ethernet cables from the 
+      90s run alongside modern fiber. The walls show decades of 
+      network evolution.
+      
+      Graffiti in ANSI art: "WIZARDS NEVER LOG OFF, THEY JUST CHANGE 
+      SERVERS". Below it, in newer paint: "Still true in 2025".
+      
+      You hear modem handshakes echoing from the apartment direction,
+      and collaborative coding from the storm drain side.
+  exits:
+    home: secret_server_room  # To sysop apartment
+    drains: storm_drain_nexus
+    maintenance: builder_server_room
+
+# === SYMMETRICAL SPACES ===
+
+- room_id: the_backbone_junction
+  name: Where All Paths Cross
+  clearance: I
+  descriptions:
+    corporate: "CRITICAL ERROR: INFINITE LOOP DETECTED"
+    reality: |
+      The deepest infrastructure where Entry and Backstage meet. Not 
+      quite the arcade, not quite the apartment, not quite the drains.
+      
+      Three terminals show different eras:
+      - PAST: MicroMUSE login screen (1993)
+      - PRESENT: AlgoCratic Futures (2025)  
+      - FUTURE: "ERROR: TEMPORAL FAULT"
+      
+      The symmetry is perfect here:
+      - New players descending from tutorials
+      - Old wizards ascending from memory
+      - Current builders working in the middle
+      
+      A sign floats in digital space:
+      "ENTRY IS EXIT IS ENTRY"
+      "TUTORIAL IS MEMORY IS CREATION"
+      "EVERYTHING CONNECTS"
+  exits:
+    entry_path: arcade_basement_expanded
+    memory_path: the_backbone  # In sysop apartment
+    builder_path: builder_quantum_lab
+    surface: storm_drain_nexus
+
+# === BUILDER CONNECTIONS ===
+
+- room_id: builder_server_room
+  name: The Real Server Room
+  clearance: G
+  descriptions:
+    corporate: "This location does not exist. Please update your map."
+    reality: |
+      Where the Builder's Lounge connects to both zones. Modern servers 
+      run next to ancient hardware from the sysop's apartment. The old 
+      SGI Indigo is here, somehow still compiling.
+      
+      Two keyboards sit side by side:
+      - A modern mechanical RGB monster labeled "STUDENT"
+      - A worn VT100 keyboard labeled "WIZARD"
+      
+      Both work. Both access the same systems. Time is negotiable here.
+      
+      The commit log shows:
+      ```
+      1993: Initial world creation
+      2025: World recreation in progress
+      2055: [REDACTED]
+      ```
+  exits:
+    lounge: builders_lounge
+    apartment: apartment_service_tunnel
+    arcade: arcade_maintenance
+    deeper: builder_quantum_lab
+
+# === SPECIAL SYMMETRIC ROOM ===
+
+- room_id: builder_quantum_lab
+  name: Schrödinger's Development Environment
+  clearance: B
+  descriptions:
+    corporate: "Probability workspace. Results may vary."
+    reality: |
+      A room that exists in three states simultaneously:
+      
+      AS TUTORIAL: You're learning to code, everything is new and 
+      exciting. The walls show "Hello World" in 50 languages.
+      
+      AS MEMORY: You're remembering when you learned, nostalgic for 
+      first discoveries. The walls show your first MUD room @desc.
+      
+      AS CREATION: You're building something new from both experiences.
+      The walls show what you're creating right now.
+      
+      All three states are true. The room adapts to what you need.
+      
+      A quantum terminal shows:
+      ```
+      > whoami
+      student@entry
+      wizard@memory  
+      builder@present
+      All of the above
+      ```
+  exits:
+    entry: arcade_basement_expanded
+    memory: wizard_shrine  # In apartment
+    present: builders_lounge
+    quantum: the_backbone_junction

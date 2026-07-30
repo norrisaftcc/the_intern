@@ -1,0 +1,173 @@
+# Boardwalk Arcade - Tutorial Area
+# VR Sims teach MUD interaction basics
+
+- room_id: boardwalk_arcade_entrance
+  name: Neon Arcade Entrance
+  clearance: R
+  descriptions:
+    corporate: |
+      Employee Recreation Zone 7-B. Approved leisure activities for optimal 
+      work-life balance. Time spent here counts against your break allocation.
+      Current wait time: 0 minutes. Productivity monitoring remains active.
+    reality: |
+      A weather-beaten arcade on the pier, neon signs flickering in the lake 
+      breeze. "VIRTUAL REALITY WORLDS" blinks above the door, half the letters 
+      dead. Sounds of 8-bit music and lake waves mix. Someone's spray-painted 
+      "LEARN THE GAME" on the wall.
+  exits:
+    out: boardwalk
+    north: arcade_main_hall
+    east: prize_counter
+  items: [broken_change_machine, arcade_map]
+  agents: [arcade_attendant]
+
+- room_id: arcade_main_hall
+  name: Main Arcade Floor
+  clearance: R
+  descriptions:
+    corporate: |
+      Rows of approved entertainment terminals. Each station monitors your 
+      engagement metrics and reaction times. Remember: fun is mandatory.
+      Please maintain appropriate enjoyment levels.
+    reality: |
+      Rows of ancient arcade cabinets held together by duct tape and hope.
+      Most still work, somehow. The carpet is sticky. Prize tickets litter
+      the floor. Signs point to different "VR WORLDS": MOVEMENT TRAINER,
+      LOOK SIMULATOR, INTERACTION TUTORIAL, SOCIAL DYNAMICS.
+  exits:
+    south: boardwalk_arcade_entrance  
+    move_trainer: vr_movement_tutorial
+    look_sim: vr_observation_training
+    interact: vr_interaction_tutorial
+    social: vr_social_simulator
+    back_room: arcade_maintenance
+  items: [scattered_tickets, out_of_order_sign]
+
+- room_id: vr_movement_tutorial
+  name: VR World - Movement Training
+  clearance: R
+  descriptions:
+    corporate: |
+      Spatial Navigation Competency Assessment. This simulation evaluates 
+      your ability to navigate corporate facilities efficiently. 
+      Score below 80% requires remedial training.
+    reality: |
+      A classic text adventure training room. Arrows painted on the walls
+      show NORTH, SOUTH, EAST, WEST. A friendly hologram explains:
+      "Welcome to movement training! Type 'north' or 'n' to go north!
+      Try 'look' to see exits. Type 'help' if you're stuck!"
+      
+      [Tutorial Room - teaches: movement commands, exit reading]
+  exits:
+    north: movement_test_north
+    south: movement_test_south
+    east: movement_test_east  
+    west: movement_test_west
+    out: arcade_main_hall
+  agents: [movement_instructor]
+  items: [direction_guide, practice_map]
+
+- room_id: vr_observation_training
+  name: VR World - Looking Around
+  clearance: R
+  descriptions:
+    corporate: |
+      Environmental Awareness Module. Employees must demonstrate adequate
+      situational awareness. Your observation skills directly impact your
+      performance metrics.
+    reality: |
+      A room filled with random objects at different heights and locations.
+      A screen shows commands: "LOOK - see the whole room", 
+      "LOOK AT [object] - examine specific items", "LOOK [direction] - 
+      peek through exits", "INVENTORY - check your items".
+      
+      Each successful observation gives a ticket!
+      
+      [Tutorial Room - teaches: look, examine, inventory commands]
+  exits:
+    out: arcade_main_hall
+    practice: observation_practice_room
+  items: [red_ball, blue_cube, green_pyramid, hidden_ticket]
+  agents: [observation_trainer]
+
+- room_id: vr_interaction_tutorial
+  name: VR World - Object Interaction
+  clearance: R
+  descriptions:
+    corporate: |
+      Resource Utilization Training. Learn proper procedures for 
+      corporate asset interaction. Misuse of company property will
+      be recorded in your permanent file.
+    reality: |
+      Tables covered with various objects to practice with. Signs explain:
+      "GET/TAKE [item] - pick things up", "DROP [item] - put things down",
+      "USE [item] - activate items", "GIVE [item] TO [person] - share stuff",
+      "PUT [item] IN [container] - organization skills!"
+      
+      A robot assistant helps you practice each command.
+      
+      [Tutorial Room - teaches: get, drop, use, give, put commands]
+  exits:
+    out: arcade_main_hall
+    advanced: interaction_puzzles
+  items: [practice_key, training_box, ticket_dispenser, friendly_robot]
+  agents: [interaction_bot]
+
+- room_id: vr_social_simulator  
+  name: VR World - Social Dynamics
+  clearance: R
+  descriptions:
+    corporate: |
+      Interpersonal Efficiency Training. Practice approved communication
+      patterns. Remember: all conversations are logged for quality assurance.
+      Maintain professional demeanor at all times.
+    reality: |
+      NPCs stand around waiting to chat. Tutorial posters explain:
+      "SAY [message] - talk to the room", "TELL [person] [message] - 
+      private message", "EMOTE [action] - express yourself",
+      "@channel [message] - use communication channels".
+      
+      Practice conversations earn bonus tickets!
+      
+      [Tutorial Room - teaches: say, tell, emote, channel commands]
+  exits:
+    out: arcade_main_hall
+    quiet_room: social_practice_booth
+  agents: [chatty_npc, quiet_npc, helpful_npc]
+  items: [conversation_guide, emote_list]
+
+- room_id: prize_counter
+  name: Arcade Prize Counter
+  clearance: R
+  descriptions:
+    corporate: |
+      Performance Reward Distribution Center. Exchange your productivity
+      tokens for approved incentives. All prizes subject to availability
+      and management discretion.
+    reality: |
+      A glass case full of terrible prizes: rubber spiders, fake mustaches,
+      "I SURVIVED THE TUTORIAL" stickers, and one dusty PlayStation 2.
+      Behind the counter, a bored teenager texts while occasionally
+      glancing up. A sign says "TICKETS ALSO ACCEPTED IN STORM DRAINS".
+  exits:
+    west: boardwalk_arcade_entrance
+    secret: prize_counter_storage  # Hidden exit for yellow+
+  agents: [prize_teen]
+  items: [prize_list, ticket_basket, dusty_ps2]
+
+- room_id: arcade_maintenance
+  name: Behind the Machines
+  clearance: O  # Slightly hidden
+  descriptions:
+    corporate: |
+      Authorized Maintenance Personnel Only. This area is off-limits
+      to standard employees. Your presence has been logged.
+    reality: |
+      The guts of the arcade - wiring everywhere, spare parts, and
+      half-dismantled cabinets. A notebook contains cheat codes and
+      debug commands. Someone's been living here - there's a sleeping
+      bag and empty pizza boxes. Graffiti: "The real game is outside."
+  exits:
+    out: arcade_main_hall
+    tunnel: storm_drain_entrance  # Shortcut!
+  items: [cheat_code_notebook, debug_manual, sleeping_bag]
