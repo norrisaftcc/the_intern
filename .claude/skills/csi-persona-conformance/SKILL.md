@@ -32,7 +32,7 @@ Six checks come from the record. The harness enforces the mechanical ones.
 | Notation declared explicitly | Fixed strings | Harness |
 | Appearance prose capped | Token economy, `artifacts/META_ANALYSIS.md` | Harness |
 | Two or more paired examples | Response pattern examples | Harness |
-| Residue matches intent | ASSAY | The `the-algorithm` skill |
+| Residue matches intent | ASSAY | The `the-algorithm` skill, not shipped here |
 
 ## Layer 1 — the static harness
 
@@ -71,6 +71,14 @@ toward being agreeable, which is the erosion direction the baseline record names
 
 For a persona file that passes the harness and still reads wrong, invoke the
 `the-algorithm` skill and run ASSAY against the file.
+
+This layer needs a skill the repository does not ship. `the-algorithm` must already be
+installed in the caller's environment. If it is absent, say so and stop — do not improvise
+an assay. Layers 1, 2, and A/B do not depend on it.
+
+The record's frozen text is at `tests/csi/baseline/the-algorithm.v2.SKILL.md`, readable by
+anyone. It is a record, not an installed skill, and a second dispatchable copy would drift
+from the thing it exists to freeze.
 
 ASSAY reports the residue, what evaporated, and where the operative content sits. On a
 persona document the finding is usually one of two shapes:

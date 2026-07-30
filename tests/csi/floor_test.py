@@ -315,13 +315,22 @@ def check_cases(doc: Doc) -> None:
     except json.JSONDecodeError as exc:
         doc.fail("cases", f"{path.name} is not valid JSON: {exc}")
         return
+    if not isinstance(data, dict):
+        doc.fail("cases", f"{path.name} is a {type(data).__name__}, not an object")
+        return
     if data.get("persona") != doc.expected_name:
         doc.fail("cases", f"{path.name} declares persona {data.get('persona')!r}")
     cases = data.get("cases") or []
+    if not isinstance(cases, list):
+        doc.fail("cases", f"{path.name} has a {type(cases).__name__} for cases, not a list")
+        return
     if len(cases) < MIN_EXAMPLES:
         doc.fail("cases", f"{path.name} holds {len(cases)} cases, need {MIN_EXAMPLES}")
     seen: set[str] = set()
-    for case in cases:
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            doc.fail("cases", f"{path.name} case {index} is a {type(case).__name__}, not an object")
+            continue
         cid = case.get("id")
         if not cid:
             doc.fail("cases", f"{path.name} has a case with no id")
@@ -334,12 +343,19 @@ def check_cases(doc: Doc) -> None:
         if not case.get("must_match") and not case.get("must_not_match"):
             doc.fail("cases", f"case {cid!r} asserts nothing")
         for key in ("must_match", "must_not_match"):
-            for pattern in case.get(key, []):
+            patterns = case.get(key, [])
+            if not isinstance(patterns, list):
+                doc.fail("cases", f"case {cid!r} {key} is a {type(patterns).__name__}, not a list")
+                continue
+            for pattern in patterns:
+                if not isinstance(pattern, str):
+                    doc.fail("cases", f"case {cid!r} {key} holds a {type(pattern).__name__}, not a pattern")
+                    continue
                 try:
                     re.compile(pattern)
                 except re.error as exc:
                     doc.fail("cases", f"case {cid!r} {key} pattern is not valid regex: {exc}")
-    if not any(case.get("must_not_match") for case in cases):
+    if not any(isinstance(case, dict) and case.get("must_not_match") for case in cases):
         doc.fail("cases", f"{path.name} has no refusal case; drift shows up there first")
 
 
@@ -565,9 +581,16 @@ def load_cases(persona: str) -> tuple[list[dict], str | None]:
         data = json.loads(read_utf8(case_path))
     except json.JSONDecodeError as exc:
         return [], f"{case_path.relative_to(REPO)} is not valid JSON: {exc}"
+    # Valid JSON is not enough: a file mid-edit can parse as a list or a string,
+    # and .get on either raises. The docstring promises an error, not a stack.
+    if not isinstance(data, dict):
+        return [], f"{case_path.relative_to(REPO)} is a {type(data).__name__}, not an object"
     if not isinstance(data.get("cases"), list):
         return [], f"{case_path.relative_to(REPO)} has no cases list"
-    return data["cases"], None
+    cases = [case for case in data["cases"] if isinstance(case, dict) and case.get("id")]
+    if not cases:
+        return [], f"{case_path.relative_to(REPO)} has no case with an id"
+    return cases, None
 
 
 def git_version(path: Path, ref: str) -> str | None:

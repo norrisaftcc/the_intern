@@ -18,7 +18,7 @@ upgraded, moved, or absent, and a baseline that moves is not a baseline.
 | Token economy, via `artifacts/META_ANALYSIS.md` | Identity capped at 30 words | Harness |
 | Fixed strings | Notation declared explicitly, never implied | Harness |
 | Amendment record as drift meter | Baseline checksum comparison | Harness |
-| ASSAY | Read a persona file for what survives compression | The `the-algorithm` skill |
+| ASSAY | Read a persona file for what survives compression | The `the-algorithm` skill, not shipped here |
 | Erosion toward the smooth | Refusal cases, where drift shows first | Case files |
 
 ## Three layers
@@ -31,6 +31,15 @@ Mechanical checks only. Exit 0 means the roster is above the floor.
 
 **Layer 3, the assay.** Invoke the `the-algorithm` skill and run ASSAY against a persona
 file. Use it when the file passes layer 1 and still reads wrong.
+
+> **Layer 3 needs a skill this repository does not ship.** `the-algorithm` must already be
+> installed in the caller's environment, usually at user level. Cloning this repository does
+> not provide it, and layers 1, 2, and 4 do not need it.
+>
+> The frozen text of the record is at `tests/csi/baseline/the-algorithm.v2.SKILL.md` and is
+> readable by anyone. It is a record, not an installed skill — deliberately. A second
+> dispatchable copy would be a duplicate that can drift from the thing it exists to freeze,
+> which is the defect this whole document is about.
 
 ## The fourth operation — A/B
 
