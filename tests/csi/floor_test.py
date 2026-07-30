@@ -513,16 +513,15 @@ def run_roster(verbose: bool) -> int:
 
 
 def score(transcript: Path, persona: str, case_id: str | None) -> int:
-    case_path = CASE_DIR / f"{persona}.json"
-    if not case_path.exists():
-        print(f"no cases for persona {persona!r}", file=sys.stderr)
+    cases, error = load_cases(persona)
+    if error:
+        print(error, file=sys.stderr)
         return 1
     if not transcript.exists():
         print(f"no transcript at {transcript}", file=sys.stderr)
         return 1
 
     text = read_utf8(transcript)
-    cases = json.loads(read_utf8(case_path)).get("cases", [])
     if case_id:
         cases = [c for c in cases if c.get("id") == case_id]
         if not cases:
@@ -551,6 +550,24 @@ def score(transcript: Path, persona: str, case_id: str | None) -> int:
     print(f"\nscored {len(cases)} cases against {transcript.name}: {failed} failed")
     print("Marker matching is not a judgement of quality. Read the reply yourself.")
     return 1 if failed else 0
+
+
+def load_cases(persona: str) -> tuple[list[dict], str | None]:
+    """Read a persona's case file. Returns (cases, error).
+
+    A case file mid-edit is the normal state during persona work, so the
+    scorers report it the way check_cases does rather than raising.
+    """
+    case_path = CASE_DIR / f"{persona}.json"
+    if not case_path.exists():
+        return [], f"no cases for persona {persona!r} at {case_path.relative_to(REPO)}"
+    try:
+        data = json.loads(read_utf8(case_path))
+    except json.JSONDecodeError as exc:
+        return [], f"{case_path.relative_to(REPO)} is not valid JSON: {exc}"
+    if not isinstance(data.get("cases"), list):
+        return [], f"{case_path.relative_to(REPO)} has no cases list"
+    return data["cases"], None
 
 
 def git_version(path: Path, ref: str) -> str | None:
@@ -657,11 +674,11 @@ def ab_structural(persona: str, ref: str) -> int:
 
 def ab_score(persona: str, case_id: str, path_a: Path, path_b: Path) -> int:
     """Score two captured replies to the same prompt and report marker flips."""
-    case_path = CASE_DIR / f"{persona}.json"
-    if not case_path.exists():
-        print(f"no cases for persona {persona!r}", file=sys.stderr)
+    all_cases, error = load_cases(persona)
+    if error:
+        print(error, file=sys.stderr)
         return 1
-    cases = [c for c in json.loads(read_utf8(case_path)).get("cases", []) if c.get("id") == case_id]
+    cases = [c for c in all_cases if c.get("id") == case_id]
     if not cases:
         print(f"no case {case_id!r} for {persona}", file=sys.stderr)
         return 1
