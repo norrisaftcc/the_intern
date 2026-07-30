@@ -343,6 +343,83 @@ def check_cases(doc: Doc) -> None:
         doc.fail("cases", f"{path.name} has no refusal case; drift shows up there first")
 
 
+def live_limits() -> dict[str, object]:
+    """The limits this harness is enforcing right now."""
+    return {
+        "FLOOR_NOUNS": list(FLOOR_NOUNS),
+        "MAX_WORDS_PER_INSTRUCTION": MAX_WORDS_PER_INSTRUCTION,
+        "MAX_COLUMNS": MAX_COLUMNS,
+        "MAX_IDENTITY_WORDS": MAX_IDENTITY_WORDS,
+        "MIN_EXAMPLES": MIN_EXAMPLES,
+        "MIN_DESCRIPTION_WORDS": MIN_DESCRIPTION_WORDS,
+        "CONTRACT_SECTIONS": list(CONTRACT_SECTIONS),
+        "VOICE_SECTIONS": list(VOICE_SECTIONS),
+    }
+
+
+def limit_direction(key: str, recorded: object, live: object) -> str:
+    """Did this limit gain teeth or lose them?
+
+    A MAX going up, a MIN going down, or a list getting shorter all mean the
+    same thing: the harness will find less than the record says it finds.
+    """
+    if isinstance(recorded, bool) or isinstance(live, bool):
+        return "changed"
+    if isinstance(recorded, (int, float)) and isinstance(live, (int, float)):
+        if key.startswith("MAX"):
+            return "loosened" if live > recorded else "tightened"
+        if key.startswith("MIN"):
+            return "loosened" if live < recorded else "tightened"
+        return "changed"
+    if isinstance(recorded, list) and isinstance(live, list):
+        if len(live) < len(recorded):
+            return "loosened"
+        if len(live) > len(recorded):
+            return "tightened"
+    return "changed"
+
+
+def check_limits(record: dict, record_path: Path) -> list[Finding]:
+    """Ask the harness whether it still has the teeth the record says it has.
+
+    Without this, widening a limit is a silent, self-approving amendment: the
+    harness finds less, reports green, and nothing says the floor moved. A
+    comment saying "record amendments in RECORD.json" is the ornament that
+    Finding 2 predicts a future reviser deletes. This is the enforced version.
+    """
+    recorded = record.get("limits")
+    if not isinstance(recorded, dict):
+        return [
+            Finding(
+                record_path,
+                "limits",
+                "RECORD.json states no limits, so the harness grades its own homework. "
+                "Add a limits object recording what the floor currently enforces.",
+            )
+        ]
+
+    live = live_limits()
+    findings: list[Finding] = []
+    for key in sorted(set(recorded) | set(live)):
+        if key not in live:
+            findings.append(Finding(record_path, "limits", f"{key} is recorded but no longer enforced · loosened"))
+            continue
+        if key not in recorded:
+            findings.append(Finding(record_path, "limits", f"{key} is enforced but unrecorded · undeclared"))
+            continue
+        if recorded[key] != live[key]:
+            direction = limit_direction(key, recorded[key], live[key])
+            findings.append(
+                Finding(
+                    record_path,
+                    "limits",
+                    f"{key} {recorded[key]!r} → {live[key]!r} · {direction}. "
+                    "Amend RECORD.json with the date and the delta, or restore the limit.",
+                )
+            )
+    return findings
+
+
 def check_baseline() -> list[Finding]:
     record_path = BASELINE_DIR / "RECORD.json"
     if not record_path.exists():
@@ -356,12 +433,18 @@ def check_baseline() -> list[Finding]:
     missing = [key for key in ("file", "sha256") if not record.get(key)]
     if missing:
         return [Finding(record_path, "baseline", f"RECORD.json has no {' or '.join(missing)}")]
+
+    # The record covers two things: the frozen document, and the limits derived
+    # from it. Watching only the first lets the harness be defanged in silence.
+    findings = check_limits(record, record_path)
+
     target = BASELINE_DIR / record["file"]
     if not target.exists():
-        return [Finding(record_path, "baseline", f"recorded file {record['file']} is missing")]
+        findings.append(Finding(record_path, "baseline", f"recorded file {record['file']} is missing"))
+        return findings
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
     if digest != record["sha256"]:
-        return [
+        findings.append(
             Finding(
                 target,
                 "baseline-drift",
@@ -369,8 +452,8 @@ def check_baseline() -> list[Finding]:
                 "Restore the file, or record the amendment in full. "
                 f"expected {record['sha256'][:12]}, found {digest[:12]}",
             )
-        ]
-    return []
+        )
+    return findings
 
 
 def check_document(doc: Doc) -> None:

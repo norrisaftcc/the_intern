@@ -71,5 +71,10 @@ changing one is an amendment that belongs in `RECORD.json` with a date and a del
 `baseline-drift` is a different kind of failure. It means the frozen record changed without
 a recorded amendment. Restore the file, or record the amendment in full.
 
+`limits` is the same idea pointed one layer up: the harness's own limits no longer match
+what `baseline/RECORD.json` says it enforces. The finding names the direction — `loosened`
+means the floor lost teeth and will find less than the record claims. Restore the limit, or
+amend the record with the date and the delta.
+
 Background: `docs/csi/BASELINE.md` for what each check is derived from, and
 `docs/csi/ROSTER.md` for the personas themselves.

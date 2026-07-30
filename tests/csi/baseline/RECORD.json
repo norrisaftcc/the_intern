@@ -5,6 +5,17 @@
   "file": "the-algorithm.v2.SKILL.md",
   "sha256": "33b1f542cc1924b8c706f8bcc55c7c1d72125328cd1055f14b22b48a7e5386f0",
   "note": "Frozen copy of the baseline record. The Algorithm requires that an amendment to a contract be proposed in full, frozen by a human, and recorded. A changed file with an unchanged sha256 here is the defect signature the harness reports.",
+  "limits": {
+    "FLOOR_NOUNS": ["Audience", "Scope", "Format", "Path"],
+    "MAX_WORDS_PER_INSTRUCTION": 20,
+    "MAX_COLUMNS": 120,
+    "MAX_IDENTITY_WORDS": 30,
+    "MIN_EXAMPLES": 2,
+    "MIN_DESCRIPTION_WORDS": 15,
+    "CONTRACT_SECTIONS": ["Contract", "Behavior", "Limits"],
+    "VOICE_SECTIONS": ["Identity", "Notation", "Examples", "Provenance"]
+  },
+  "limits_note": "What the harness enforces. A MAX rising, a MIN falling, or a list shortening means the floor lost teeth, and the harness reports that as loosened. Changing one here without changing floor_test.py is the same finding from the other side. Both are amendments and belong in amendment_record below.",
   "derived_checks": [
     "floor-nouns: Audience, Scope, Format, Path stated in every persona contract",
     "speak-test: one instruction per line, 20 words or fewer, 120 columns or fewer",
@@ -17,6 +28,10 @@
     {
       "date": "2026-07-30",
       "delta": "Record created. Baseline vendored into the repository so persona conformance runs against a frozen file instead of a user-level skill that can move."
+    },
+    {
+      "date": "2026-07-30",
+      "delta": "limits object added, and check_limits added to floor_test.py. Before this, the harness watched the frozen document but not the limits derived from it. Widening MAX_WORDS_PER_INSTRUCTION from 20 to 40, MAX_IDENTITY_WORDS from 30 to 200, and MIN_EXAMPLES from 2 to 0 was demonstrated to produce the output 'floor test: 7 documents above the floor, baseline intact'. The instruction to record amendments existed only as a source comment, which is the ornament a later reviser deletes. It is now enforced, and the finding names the direction."
     }
   ]
 }

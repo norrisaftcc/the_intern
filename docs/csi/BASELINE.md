@@ -98,3 +98,34 @@ The limits in `floor_test.py` are derived from the record, so changing one is an
 Record it in `RECORD.json` with the date and the delta, as the record requires of itself.
 
 A speak-test failure is not an argument for a wider limit. It is a line that needs cutting.
+
+### The harness watches its own limits
+
+For one commit, the paragraph above was the whole enforcement mechanism — a sentence in a
+document and a comment in a source file. Pointed at itself, that is the failure it exists
+to catch. Widening the harness's own limits and running it produced:
+
+```
+MAX_WORDS_PER_INSTRUCTION = 40      # was 20
+MAX_IDENTITY_WORDS = 200            # was 30
+MIN_EXAMPLES = 0                    # was 2
+
+floor test: 7 documents above the floor, baseline intact
+```
+
+Nothing found anything, because the drift meter watched the frozen document and not the
+limits derived from it. A harness can be defanged and still report green.
+
+`RECORD.json` now carries a `limits` object and `check_limits` compares it against what the
+code enforces. The finding names the direction, because the two directions are not the same
+event: a MAX rising, a MIN falling, or a list shortening means the floor lost teeth.
+
+```
+FAIL RECORD.json [limits] MAX_WORDS_PER_INSTRUCTION 20 → 40 · loosened
+FAIL RECORD.json [limits] MAX_WORDS_PER_INSTRUCTION 20 → 12 · tightened
+FAIL RECORD.json [limits] FLOOR_NOUNS [...4 items] → [...3 items] · loosened
+FAIL RECORD.json [limits] RECORD.json states no limits, so the harness grades its own homework
+```
+
+Both directions report, because both are amendments and the record is the drift meter. Only
+one is self-erasure, and now it says which.
