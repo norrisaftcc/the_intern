@@ -10,9 +10,17 @@ names the fix. See `.claude/agents/kevin.md` for the contract.
 ## Why this directory exists
 
 Kevin is the roster's control, and he is also its first case. The `ai-review`
-workflow he was built as ran for eleven months, produced zero reviews, and
-reported `success` for all but the first two. One repair was attempted and it
-addressed the check rather than the function.
+workflow he was built as produced zero reviews, and reported `success` for all
+but its first two runs. One repair was attempted and it addressed the check
+rather than the function.
+
+**Provenance of that claim.** The run history behind it — first runs on
+2025-08-19 and 2025-08-24, both `failure`, every run since `success` — was read
+from the GitHub Actions API during the session that created this directory. It
+is not recoverable from the repository alone, and the first case file written
+here correctly declines to assert it for that reason. The duration figure rests
+on API reads, not on anything a later reader can verify by cloning. Treat it as
+sourced, not as self-evident.
 
 That history is the argument for the instrument, stated by the peer who called
 for it:
