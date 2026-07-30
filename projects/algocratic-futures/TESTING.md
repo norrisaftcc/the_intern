@@ -13,15 +13,31 @@ otherwise be lost.
 These are the gate. **They have never run.** Not "run and passed", not "run and
 failed" — never executed, by anything, once.
 
-Two independent reasons, both still true:
+**Corrected 2026-07-30** after Kevin's first case file,
+`artifacts/forensics/2026-07-30-walking-the-beat.md`. This section previously
+said "two independent reasons." That was incomplete and the order was wrong.
+There are **three obstacles in series**, and each had to be cleared before the
+next was visible. The pin was the second, not the first.
 
-1. **`deploy.yml` points at a directory that does not exist.** It runs
+1. **`deploy.yml` was at a path GitHub Actions does not read** — for about a
+   year. It lived at `projects/algocratic-futures/.github/workflows/`. Actions
+   only reads `.github/workflows/` at the repository root. Commit `166102f`
+   relocated it on 2025-08-20, but on a feature branch; a first-parent walk of
+   `origin/main` shows it reached the default branch only at merge `161a3e5` on
+   2026-07-30. Until that merge the workflow could not run at all.
+
+2. **`requirements.txt` pinned a version that was never published.**
+   `adventurelib==2.0.0` — PyPI's releases stop at `1.2.1`. `pip install` failed
+   before any test step. Repaired by `2dedf02`, 2026-07-30.
+
+3. **`deploy.yml` points at a directory that does not exist.** It runs
    `cd projects/algocratic-futures/backend` then `pytest tests/`. There is no
-   `backend/tests/`. The step exits 4. Until 2026-07-30 nothing had ever reached
-   it, because `requirements.txt` pinned `adventurelib==2.0.0`, a version never
-   published, so `pip install` failed first.
+   `backend/tests/`. The step exits 4 — a usage error, not a test result. This
+   is the first obstacle anyone has been in a position to see, and it is current.
 
-2. **`agent_tier_tests.yml` filters on paths that do not exist.** Its `paths:` are
+Separately, and not in that series:
+
+4. **`agent_tier_tests.yml` filters on paths that do not exist.** Its `paths:` are
    `agent_prompts_tiered.py`, `test_agent_tiers.py`, `agent_system.py` — matched
    from the repository root. These files are at
    `projects/algocratic-futures/backend/`. The filter never matches, so the

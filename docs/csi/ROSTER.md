@@ -40,11 +40,19 @@ VITA has no Edit or Write tool. A rule the tool list enforces cannot be talked o
 ## Kevin is the control, and he breaks one rule on purpose
 
 Five personas were reconstructed from transcripts. Kevin was reconstructed from a
-**workflow** — `.github/workflows/ai-code-review.yml`, which has run since August
-2025 and never produced a review. That is a real source and not an invention, but
-it is the only one that is code rather than a record of speech, so the
+**workflow** — `.github/workflows/ai-code-review.yml`, added August 2025 and
+never once producing a review. That is a real source and not an invention, but it
+is the only one that is code rather than a record of speech, so the
 `csi-fork-protocol` rule about sources in `artifacts/` does not literally hold for
 him. Stated here rather than quietly widened.
+
+Two corroborations turned up afterward in
+`projects/algocratic-futures/CLAUDE.md`, neither of which I had when writing him.
+He is named there in the project's own account of itself — *"Kevin offered GitHub
+automation help"* — so he predates this reconstruction as a character, not only as
+a file. And the automation he offered sits at position 7 of that document's
+**DEFER — Nice to Have** list: *"AI code review for large PRs."* It was built
+anyway, and then reported success for a year without doing it.
 
 He is the control, which means two things the others do not carry:
 
