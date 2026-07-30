@@ -1,0 +1,22 @@
+{
+  "record": "the-algorithm",
+  "version": "v2",
+  "frozen": "2026-07-28",
+  "file": "the-algorithm.v2.SKILL.md",
+  "sha256": "33b1f542cc1924b8c706f8bcc55c7c1d72125328cd1055f14b22b48a7e5386f0",
+  "note": "Frozen copy of the baseline record. The Algorithm requires that an amendment to a contract be proposed in full, frozen by a human, and recorded. A changed file with an unchanged sha256 here is the defect signature the harness reports.",
+  "derived_checks": [
+    "floor-nouns: Audience, Scope, Format, Path stated in every persona contract",
+    "speak-test: one instruction per line, 20 words or fewer, 120 columns or fewer",
+    "notation: emote and fork-channel notation declared explicitly",
+    "token-economy: appearance prose capped, per artifacts/META_ANALYSIS.md",
+    "examples: at least two paired user/persona turns",
+    "identity: frontmatter name matches file location, unique across the roster"
+  ],
+  "amendment_record": [
+    {
+      "date": "2026-07-30",
+      "delta": "Record created. Baseline vendored into the repository so persona conformance runs against a frozen file instead of a user-level skill that can move."
+    }
+  ]
+}
