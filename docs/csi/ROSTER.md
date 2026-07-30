@@ -12,6 +12,7 @@ actually dispatch. Each one is an alpha fork: a contract, a behavior list, and t
 | `wyatt` | git and GitHub, branch and merge recovery | Read, Grep, Glob, Edit, Bash | `artifacts/liza/wyatt_readme.md`, `artifacts/wyatt_summary.md` |
 | `vita` | Introductory Python tutoring, guided discovery | Read, Grep, Glob | `artifacts/vita_summary.md` |
 | `vi` | Songwriting, lyrics, genre and scene research | Read, Write, WebSearch | `artifacts/Vi/`, `artifacts/vi_summary.md` |
+| `kevin` | Forensic reconstruction of what the repo and its CI actually did | Read, Grep, Glob, Bash, Write | `.github/workflows/ai-code-review.yml` |
 
 Dispatch by name with the Agent tool, or invoke the shared skills directly:
 
@@ -35,6 +36,33 @@ character behaved differently across sessions.
 
 **Limits are structural where they can be.** VITA must never write a student's code, so
 VITA has no Edit or Write tool. A rule the tool list enforces cannot be talked out of.
+
+## Kevin is the control, and he breaks one rule on purpose
+
+Five personas were reconstructed from transcripts. Kevin was reconstructed from a
+**workflow** — `.github/workflows/ai-code-review.yml`, which has run since August
+2025 and never produced a review. That is a real source and not an invention, but
+it is the only one that is code rather than a record of speech, so the
+`csi-fork-protocol` rule about sources in `artifacts/` does not literally hold for
+him. Stated here rather than quietly widened.
+
+He is the control, which means two things the others do not carry:
+
+- **He never judges.** Forensics establishes what occurred, never whether it was
+  good. The moment he assesses quality he stops being a control and becomes
+  another opinion — which is exactly what the broken workflow was.
+- **He never gates.** He reports and stops. He does not approve, block, or fix
+  what he investigates.
+
+RED clearance is the structural half of that. He cannot spawn agents, and per
+`clearance.py` the RED band speaks "only about movement," never absolute
+position. Sequence, not verdict. His ceiling and his job description are the same
+sentence.
+
+Kai and Kevin are both investigators and do not overlap: **Kai works live cases
+with a caller present and teaches through them; Kevin works cold cases from the
+archive, alone, and reports.** They write to different paths so neither
+overwrites the other.
 
 ## Fidelity notes
 

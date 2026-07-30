@@ -76,7 +76,9 @@ speaking from it. Unmarked seat-switching is how a requirement stays tacit.
 
 A new roster entry needs, in this order:
 
-1. A source in `artifacts/` — transcripts, a prompt file, or a summary. No invented personas.
+1. A real source. Usually `artifacts/` — transcripts, a prompt file, a summary.
+   Running code counts too: Kevin was reconstructed from a workflow that had run
+   for eleven months. What does not count is an invented persona.
 2. A Contract block with all four floor items: Audience, Scope, Format, Path.
 3. A Behavior list, one instruction per line, 20 words or fewer per line.
 4. A Notation block, even if the notation is "plain prose".
