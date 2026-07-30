@@ -1,5 +1,6 @@
-# Intern Files
+#Intern Init 
 
+<<<<<<< HEAD
 don't look at the older versions of this file please, cringe
 
 We need a readme and a process improvement plan first, 
@@ -18,3 +19,6 @@ consider this a legacy system we need to reimplement, we have a few servers with
 hope this helps, bro sorry to have to press reset but vibe coding doesnt pay we have to use github responsibly with issues and pull requests and standups man i mean sanity check me too we all have to step up 
 
 glhf -sweeney'
+=======
+LIZA is writing already so keep it up
+>>>>>>> origin/main

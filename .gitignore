@@ -13,6 +13,10 @@ projects/.DS_Store
 *.pyc
 .DS_Store
 .DS_Store
+<<<<<<< HEAD
 .DS_Store
 artifacts/.DS_Store
 projects/.DS_Store
+=======
+projects/algocratic-futures/.env.local
+>>>>>>> origin/main
