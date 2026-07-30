@@ -2,6 +2,12 @@
 
 This directory contains various artifacts related to the Creative Solutions Investigation (CSI) project, with a focus on prompts for generating specific behaviors from AI assistants.
 
+> **These prompts have been reconstructed as runnable agents.** The personas below now exist
+> as dispatchable agents in `.claude/agents/`, with shared skills in `.claude/skills/` and a
+> conformance harness in `tests/csi/`. See [docs/csi/ROSTER.md](/docs/csi/ROSTER.md) for the
+> roster and [docs/csi/BASELINE.md](/docs/csi/BASELINE.md) for how they are tested against
+> The Algorithm as a baseline. The files in this directory remain the source of record.
+
 ## Key Documents
 
 - **[PROMPT_CATALOG.md](PROMPT_CATALOG.md)**: Comprehensive catalog of available prompts organized by character and purpose
