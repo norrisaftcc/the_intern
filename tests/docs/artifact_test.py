@@ -114,6 +114,8 @@ class ArtifactDocument(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.stack: list[tuple[str, int]] = []
         self.errors: list[str] = []
+        self.scripts: list[tuple[dict, str]] = []
+        self._script: list | None = None
         self.doctype = False
         self.charset = False
         self.body = False
@@ -136,6 +138,8 @@ class ArtifactDocument(HTMLParser):
             elif (a.get("http-equiv", "").strip().lower() == "content-type"
                   and "utf-8" in a.get("content", "").lower()):
                 self.charset = True
+        if tag == "script":
+            self._script = [a, ""]
         if tag == "body":
             self.body = True
         if tag == "html":
@@ -165,7 +169,14 @@ class ArtifactDocument(HTMLParser):
         if foreign and self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
 
+    def handle_data(self, data: str) -> None:
+        if self._script is not None:
+            self._script[1] += data
+
     def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self._script is not None:
+            self.scripts.append((self._script[0], self._script[1]))
+            self._script = None
         if not self.stack:
             self.errors.append(f"line {self.getpos()[0]}: stray </{tag}>")
             return
@@ -225,39 +236,32 @@ def check_parses() -> list[str]:
     return out
 
 
-# Any script tag, however it is spelled. The first version of this matched a
-# bare `<script>` only, and the failure mode was the worst available: a second
-# document written as `<script type="module">` was silently excluded from the
-# comparison, so the check reported "one shared widget" across two documents
-# whose widgets differed. Verified as a real false pass before this was
-# changed, not reasoned about. A check that goes quiet exactly when someone
-# deviates is the defect this file exists to catch, and it was in this file.
+# SCRIPT_RE and TYPE_RE used to live here: a hand-rolled `<script>` matcher
+# and an attribute reader beside it. Nearly every false pass this file has
+# shipped came from that one decision to re-parse text the ArtifactDocument
+# walk was already reading -
 #
-# Non-greedy to the first `</script>`, which was raised in review as the same
-# fragility the CSS scanner has - a `</script>` inside a JS string would end
-# the match early. Checked rather than assumed, and the premise does not hold:
-# an unescaped `</script>` inside a string ends the *element* too. HTML has no
-# escaping inside raw text, which is why the idiom is to write `<\/script>`.
+#     a bare `<script>` pattern skipped `<script type="module">` entirely
+#     `[^>]*` ended the tag at a `>` inside an attribute value
+#     `\btype` matched inside `data-type` and won over the real attribute
 #
-#     >>> feed('<script>var s = "</script>"; alert(1)</script>')
-#     script body: 'var s = "'
+# - three separate patches to three symptoms of the same cause. html.parser
+# puts <script> in CDATA_CONTENT_ELEMENTS, so it handles the raw-text body, any
+# attribute spelling, and quoted `>` for free, and it agrees with a browser on
+# where the element ends. Verified against all five shapes before switching,
+# including the double-escaped state a `<!--` opens.
 #
-# So this agrees with the parser rather than approximating it. The genuine edge
-# is the double-escaped state a `<!--` opens, which nothing here uses.
-# The attribute group understands quoting. `[^>]*` was the first version, and
-# `data-x=">"` ended it mid-attribute - which did not fail, it collected a
-# script whose body began `">` and compared that. Silently wrong is the mode
-# this file exists to remove.
-SCRIPT_RE = re.compile(
-    r"""<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>(.*?)</script>""", re.S | re.I)
-# `\btype` was the first version, and `\b` matches at the hyphen/letter
-# boundary in `data-type` - so a widget carrying `data-type="foo"` was
-# classified by that instead, and with both attributes present the data- one
-# won, because search() returns the first match. Anchored on start-or-space.
-TYPE_RE = re.compile(r"""(?:^|\s)type\s*=\s*["']?([^"'\s>]+)""", re.I)
+# Scripts now come off the same parse as the tag balance. There is one reader.
 
 
-def script_problem(attrs: str, body: str) -> str | None:
+def scripts_in(path: Path) -> list[tuple[dict, str]]:
+    """Every <script> in a document, off the same parse as the tag balance."""
+    doc = ArtifactDocument()
+    doc.feed(read(path))
+    return doc.scripts
+
+
+def script_problem(attrs: dict, body: str) -> str | None:
     """Why this script cannot be compared, or None if it can.
 
     Returns the complaint rather than a bool because check_shared_widget must
@@ -269,7 +273,7 @@ def script_problem(attrs: str, body: str) -> str | None:
     stop two filters drifting, used by one of them. The drift it warns about,
     in its own introduction.
     """
-    if "src=" in attrs.lower():
+    if "src" in attrs:
         # Stated as a limit of this harness, NOT as a verdict on the
         # architecture. An earlier wording said "a standalone document should
         # not need one", which quietly encodes "keep it pasted, but check the
@@ -281,15 +285,15 @@ def script_problem(attrs: str, body: str) -> str | None:
                 "compare. If the widget is being extracted to a shared file, "
                 "teach this check to follow it - see #43 - rather than working "
                 "around this message.")
-    if "<!--" in body:
-        return ("contains `<!--`, which opens the double-escaped state where "
-                "`</script>` no longer ends the element. This harness reads "
-                "scripts with a regex that cannot follow that. Remove it, or "
-                "teach this check.")
+    # The `<!--` refusal that used to sit here was justified by the regex not
+    # being able to follow the double-escaped state. The parser can, and a rule
+    # outliving its reason is a rule nobody can argue with. Removed rather than
+    # kept for safety: refusing input this harness now reads correctly is the
+    # false-fail side of the same coin.
     return None
 
 
-def comparable_script(attrs: str, body: str) -> bool:
+def comparable_script(attrs: dict, body: str) -> bool:
     return script_problem(attrs, body) is None and bool(body.strip())
 
 
@@ -308,7 +312,7 @@ def check_shared_widget() -> list[str]:
     scripts: dict[str, list[str]] = {}
 
     for path in html_files():
-        for attrs, body in SCRIPT_RE.findall(read(path)):
+        for attrs, body in scripts_in(path):
             problem = script_problem(attrs, body)
             if problem is not None:
                 out.append(f"{rel(path)}: an inline script {problem}")
@@ -320,8 +324,9 @@ def check_shared_widget() -> list[str]:
                 # `<script type="module">` is not the same widget. Grouping on
                 # body alone would have traded the false pass this check just
                 # fixed for its mirror image.
-                kind = (TYPE_RE.search(attrs) or [None, "classic"])[1].lower()
-                where = rel(path) + (f" (<script{attrs}>)" if attrs.strip() else "")
+                kind = attrs.get("type", "classic").strip().lower() or "classic"
+                shown = " ".join(f'{k}="{v}"' for k, v in sorted(attrs.items()))
+                where = rel(path) + (f" (<script {shown}>)" if shown else "")
                 scripts.setdefault((kind, body), []).append(where)
 
     if len(scripts) > 1:
@@ -339,36 +344,36 @@ def check_shared_widget() -> list[str]:
 DECL_NAME_RE = re.compile(r"^\s*(--[\w-]+)\s*:\s*(.*)$", re.S)
 
 
-COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
+def scan_css(css: str):
+    """Yield (index, char, quoted) for every character outside a comment.
 
-
-def scan_css(css: str, stop: str):
-    """Walk CSS, yielding (index, char) for characters outside strings and comments.
-
-    `declarations()` and `body_at()` each hand-rolled this quote-tracking and
-    comment-skipping loop. That is the second time in this file that "should
-    have been one primitive" came up - the first is the widget this whole pull
-    request is about - and the two copies had already drifted: body_at learned
-    about strings in order to count braces safely, and declarations was written
-    afterwards without them and truncated `content: ";"`.
+    ONE definition of "inside a string" and "inside a comment", used by both
+    callers. The previous shape had scan_css skipping comments while
+    `declarations` sliced raw text and then ran COMMENT_RE over the pieces - a
+    second, weaker comment path layered on the first, added to patch a bug the
+    extraction had itself introduced. Two answers to one question is how this
+    file's worst defects started; a scanner is not the place to keep a spare.
     """
     quote, i, n = None, 0, len(css)
     while i < n:
         c = css[i]
         if quote:
-            if c == "\\":
+            yield i, c, True
+            if c == "\\" and i + 1 < n:
+                yield i + 1, css[i + 1], True
                 i += 2
                 continue
             if c == quote:
                 quote = None
         elif c in "\"'":
             quote = c
+            yield i, c, True
         elif c == "/" and css.startswith("/*", i):
             end = css.find("*/", i + 2)
             i = n if end < 0 else end + 2
             continue
-        elif c in stop:
-            yield i, c
+        else:
+            yield i, c, False
         i += 1
 
 
@@ -378,23 +383,17 @@ def declarations(css: str) -> list[str]:
     `([^;]+);` was the first version and it truncates `content: ";"` at the
     quote's semicolon. Braces separate as well as semicolons: the media blocks
     here wrap a nested `:root { ... }`, and splitting on `;` alone glued the
-    selector onto the first declaration and lost it - which the harness caught
-    the moment it ran. Noted because the regex this replaced did not have that
-    bug, and a fix that introduces one is worth saying out loud.
+    selector onto the first declaration and lost it.
     """
-    parts, last = [], 0
-    for i, _ in scan_css(css, ";{}"):
-        parts.append(css[last:i])
-        last = i + 1
-    parts.append(css[last:])
-    # Comments survive the split - scan_css steps over them so a `;` inside one
-    # cannot separate declarations, but the text is still in the slice, and a
-    # leading `/* ... */` breaks DECL_NAME_RE's anchor. The previous
-    # hand-rolled loop dropped comment characters as it went; extracting the
-    # scanner lost that, and every base :root opening with a comment came back
-    # missing its first token. Caught by the two real documents, NOT by
-    # harness_test - which is a gap in the meta-test, now closed with a case.
-    return [COMMENT_RE.sub(" ", part) for part in parts]
+    parts, buf = [], []
+    for _, c, quoted in scan_css(css):
+        if c in ";{}" and not quoted:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(c)
+    parts.append("".join(buf))
+    return parts
 
 
 MEDIA_RE = re.compile(r"@media\s*\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", re.I)
@@ -409,14 +408,15 @@ class BlockNotFound(Exception):
 def body_at(text: str, brace_index: int) -> str:
     """Brace-balanced body starting at an opening brace.
 
-    Aware of strings and `/* */` comments through the shared scanner, because a
-    declaration like `content: "{"` would otherwise desync the counter and
-    silently truncate the block - producing a short token map and a page of
-    invented mismatches. Not a CSS parser; this is the smallest thing that is
-    not wrong here.
+    Strings and comments come from the shared scanner, because a declaration
+    like `content: "{"` would otherwise desync the counter and silently
+    truncate the block - producing a short token map and a page of invented
+    mismatches. Not a CSS parser; this is the smallest thing that is not wrong.
     """
     depth = 0
-    for i, c in scan_css(text[brace_index:], "{}"):
+    for i, c, quoted in scan_css(text[brace_index:]):
+        if quoted or c not in "{}":
+            continue
         depth += 1 if c == "{" else -1
         if depth == 0:
             return text[brace_index + 1:brace_index + i]
@@ -454,22 +454,52 @@ def media_spans(text: str) -> list[tuple[int, int]]:
 # A value that names a colour. Used to tell a token that *should* have a theme
 # variant from one that legitimately does not.
 #
-# KNOWN LIMIT, and it is the same shape as the defect this check was added for.
-# `--ultraviolet` was missed because nothing looked at unthemed tokens at all;
-# a token set to a CSS keyword outside the list below - `rebeccapurple`, say -
-# is still missed, because it looks like an identifier and so does `system-ui`.
-# The CSS named-colour set is 148 entries and inlining it here would be more
-# source than the check it serves. The residual is stated rather than closed:
-# a colour named by an uncommon keyword and declared only in the base :root
-# will not be flagged. THEME_INVARIANT below is where an intentional exemption
-# goes; this is where an unintentional one still hides.
-COLOUR_RE = re.compile(
-    r"^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|color-mix\(|var\(|"
-    r"transparent\b|currentcolor\b|"
-    r"(?:black|white|red|green|blue|yellow|orange|purple|grey|gray|"
-    r"pink|brown|cyan|magenta|violet|indigo|teal|navy|olive|maroon|"
-    r"silver|gold|beige|ivory|coral|salmon|crimson|lime|aqua|fuchsia)\b)",
-    re.I)
+# The named-colour set is complete - all 148 CSS keywords plus `transparent`
+# and `currentColor`. A partial list was the first version and it was the worst
+# of the three options: `red` and `transparent` were recognised while
+# `rebeccapurple` was not, so the check LOOKED exhaustive and silently skipped
+# the tokens nobody thought to add. That is the same shape as `--ultraviolet`,
+# which is the defect this check was written for. Either enumerate them or
+# narrow to hex and functions and say so; a partial set claims the first while
+# delivering the second.
+CSS_NAMED_COLOURS = frozenset("""
+aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond
+blue blueviolet brown burlywood cadetblue chartreuse chocolate coral
+cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray
+darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid
+darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey
+darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue
+firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod
+gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki
+lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan
+lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon
+lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue
+lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue
+mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen
+mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin
+navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod
+palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum
+powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon
+sandybrown seagreen seashell sienna silver skyblue slateblue slategray
+slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet
+wheat white whitesmoke yellow yellowgreen
+""".split())
+
+COLOUR_FUNC_RE = re.compile(
+    r"^(#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|"
+    r"color-mix|light-dark)\s*\()")
+
+
+def is_colour(value: str) -> bool:
+    v = value.strip().lower()
+    if COLOUR_FUNC_RE.match(v):
+        return True
+    if v.startswith("var("):
+        # Indirection through another custom property. The target is themed or
+        # it is not, and this check will reach it under its own name.
+        return True
+    return v in CSS_NAMED_COLOURS or v in {"transparent", "currentcolor"}
+
 
 # Colour tokens that are deliberately the same in every theme. Empty today.
 # Pinned as an explicit list rather than inferred, on the same reasoning as
@@ -508,7 +538,7 @@ def check_every_colour_themes(all_blocks: list[ThemeBlocks]) -> list[str]:
             continue
 
         for key, value in sorted(blocks.base.items()):
-            if not COLOUR_RE.match(value) or key in THEME_INVARIANT:
+            if not is_colour(value) or key in THEME_INVARIANT:
                 continue
             absent = [where for where, toks in overrides.items() if key not in toks]
             if len(absent) == len(overrides):
@@ -749,7 +779,31 @@ def check_board_harness_count() -> list[str]:
     return []
 
 
-def main() -> int:
+def main(docs_root: Path | None = None, repo_root: Path | None = None,
+         theme_invariant: set[str] | None = None) -> int:
+    """Run every check. Roots are arguments so a caller need not reach in.
+
+    harness_test.py used to assign artifact_test.DOCS and .REPO directly and
+    restore them in a finally. Correct for a sequential script and silently
+    wrong under any parallel runner - two tests would fight over one module's
+    globals. Passing them removes the shared mutable state rather than
+    documenting it.
+    """
+    global DOCS, REPO, THEME_INVARIANT
+    saved = (DOCS, REPO, THEME_INVARIANT)
+    if docs_root is not None:
+        DOCS = docs_root
+    if repo_root is not None:
+        REPO = repo_root
+    if theme_invariant is not None:
+        THEME_INVARIANT = theme_invariant
+    try:
+        return _run()
+    finally:
+        DOCS, REPO, THEME_INVARIANT = saved
+
+
+def _run() -> int:
     if not DOCS.is_dir():
         print("docs artifact test: FAILED")
         print("  docs/ is missing; this check cannot run, which is a failure "
@@ -792,7 +846,7 @@ def main() -> int:
     # would have reported a widget that does not exist. A success line is a
     # claim like any other.
     n_widgets = len({body for path in files
-                     for attrs, body in SCRIPT_RE.findall(read(path))
+                     for attrs, body in scripts_in(path)
                      if comparable_script(attrs, body)})
     widget = ("no inline widget" if n_widgets == 0
               else f"{n_widgets} shared widget")

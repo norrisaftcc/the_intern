@@ -214,6 +214,16 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
     ("no documents at all is a failure, not a pass",
      {}, True, "no HTML under docs/"),
 
+    ("an uncommon named colour still has to theme",
+     {"a.html": doc(GOOD_CSS.replace("--ink: #E7E9ED;\n    --sans",
+                                     "--ink: #E7E9ED;\n    --brand: rebeccapurple;\n    --sans"))},
+     True, "never themes"),
+
+    ("a <!-- comment guard in a script body is read, not refused",
+     {"a.html": doc(GOOD_CSS, script='<script>\n<!--[if IE]> x <![endif]-->\n  var a = 1;\n</script>'),
+      "b.html": doc(GOOD_CSS, script='<script>\n<!--[if IE]> x <![endif]-->\n  var a = 1;\n</script>')},
+     False, ""),
+
     ("a bare <svg/> with no children self-closes",
      {"a.html": doc(GOOD_CSS, body="<svg/><p>x</p>")}, False, ""),
 
@@ -306,7 +316,8 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
 ]
 
 
-def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int, str]:
+def run_against(files: dict[str, str], workflow: str | None = None,
+                theme_invariant: set[str] | None = None) -> tuple[int, str]:
     """Point the harness at a scratch docs/ and capture what it reports.
 
     `workflow` writes a .github/workflows/checks.yml, so the board-count check
@@ -324,24 +335,20 @@ def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int
             wf.mkdir(parents=True)
             (wf / "checks.yml").write_text(workflow, encoding="utf-8")
 
-        real_docs, real_repo = A.DOCS, A.REPO
-        A.DOCS, A.REPO = docs, tmp
         buf: list[str] = []
-        # contextlib.redirect_stdout rather than monkeypatching builtins.print:
-        # the stdlib primitive exists for this and does not interact oddly with
-        # a runner that also patches print.
+        # Roots passed as arguments rather than assigned onto the module.
+        # The previous version swapped A.DOCS and A.REPO and restored them in a
+        # finally - correct here, and silently wrong under any parallel runner.
         sink = io.StringIO()
         try:
             with contextlib.redirect_stdout(sink):
-                code = A.main()
+                code = A.main(docs_root=docs, repo_root=tmp,
+                              theme_invariant=theme_invariant)
         except Exception as exc:  # noqa: BLE001 - a Ctrl-C is not a finding
             # A harness that dies with a traceback where it should report is
-            # the failure this whole stack is about. Reverting the media_spans
-            # fix made THIS file crash rather than say which case broke.
+            # the failure this whole stack is about.
             buf.append(f"the harness raised {type(exc).__name__}: {exc}")
             code = 1
-        finally:
-            A.DOCS, A.REPO = real_docs, real_repo
         return code, sink.getvalue() + "\n".join(buf)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -363,12 +370,7 @@ def check_theme_invariant_exemption() -> list[str]:
         return ["an unthemed colour passed even before the exemption was "
                 "applied; this case proves nothing as written"]
 
-    original = A.THEME_INVARIANT
-    A.THEME_INVARIANT = {"--brand"}
-    try:
-        code, output = run_against(files)
-    finally:
-        A.THEME_INVARIANT = original
+    code, output = run_against(files, theme_invariant={"--brand"})
     if code != 0:
         return [f"THEME_INVARIANT did not suppress the finding for an exempted "
                 f"token; the exemption path does not work. output: "
