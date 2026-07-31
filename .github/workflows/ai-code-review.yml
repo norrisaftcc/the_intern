@@ -176,11 +176,21 @@ jobs:
           # not escape backslashes, tabs or control characters - so any diff
           # containing a backslash produced malformed JSON, another error the
           # fallback absorbed.
-          # max_tokens covers thinking tokens as well as the reply. This model
-          # thinks by default, and at 2000 the whole budget went to thinking:
-          # run 30594010555 returned stop_reason max_tokens with 2000 thinking
-          # tokens and no text block at all. The ceiling has to clear the
-          # thinking budget with the review still to come.
+          # max_tokens covers thinking tokens as well as the reply, and this
+          # model thinks without being asked to. Not inferred from docs -
+          # observed. Run 30594010555 sent this exact body, with no `thinking`
+          # field anywhere in it, and got back:
+          #
+          #   "content": [{"type": "thinking", ...}]
+          #   "stop_reason": "max_tokens"
+          #   "output_tokens": 2000, "thinking_tokens": 2000
+          #
+          # A request that never mentions thinking, answered with 2000 thinking
+          # tokens and no text block. So the ceiling has to clear the thinking
+          # budget with the whole review still to come. Left implicit rather
+          # than pinned with an explicit `thinking` parameter: this request
+          # shape is now known to work end to end, and changing a working call
+          # to restate a default it already gets is an unforced risk.
           jq -n \
             --rawfile prompt review_prompt.txt \
             --arg model "$MODEL" \
@@ -191,13 +201,30 @@ jobs:
           # API actually said. `-f` is deliberately not used: it suppresses the
           # error body, and the error body is the only thing that explains a
           # failure to whoever reads the run.
+          # `|| curl_status=$?` is load-bearing under `set -e`. A bare
+          # `http_status=$(curl ...)` takes the exit code of the substitution,
+          # so a transport failure - timeout, DNS, TLS - killed the step here
+          # and every diagnostic below went unread. Verified: the bare form
+          # exits 60 on a TLS failure and prints nothing at all, which made
+          # `--max-time 300` unreportable by construction. curl's stderr is
+          # captured rather than shown, because on transport failure it is the
+          # only description of what went wrong.
+          curl_status=0
           http_status=$(curl -sS -o response.json -w '%{http_code}' \
             -X POST "https://api.anthropic.com/v1/messages" \
             -H "Content-Type: application/json" \
             -H "x-api-key: ${CLAUDE_API_KEY}" \
             -H "anthropic-version: ${ANTHROPIC_VERSION}" \
             --max-time 300 \
-            -d @request.json)
+            -d @request.json 2>curl_stderr.txt) || curl_status=$?
+
+          if [ "$curl_status" != "0" ]; then
+            echo "::error::The request never completed. curl exited ${curl_status}."
+            # 28 is --max-time. 6 is DNS. 35/60 are TLS. None of these reach
+            # the API at all, so there is no response body to read.
+            cat curl_stderr.txt
+            exit 1
+          fi
 
           if [ "$http_status" != "200" ]; then
             echo "::error::Anthropic API returned HTTP ${http_status}."
