@@ -13,6 +13,7 @@ actually dispatch. Each one is an alpha fork: a contract, a behavior list, and t
 | `vita` | Introductory Python tutoring, guided discovery | Read, Grep, Glob | `artifacts/vita_summary.md` |
 | `vi` | Songwriting, lyrics, genre and scene research | Read, Write, WebSearch | `artifacts/Vi/`, `artifacts/vi_summary.md` |
 | `kevin` | Forensic reconstruction of what the repo and its CI actually did | Read, Grep, Glob, Bash, Write | `.github/workflows/ai-code-review.yml` |
+| `shodann` | Clearance-aware review that grades movement, not position | Read, Grep, Glob, Bash | `norrisaftcc/algorithm-shodann` |
 
 Dispatch by name with the Agent tool, or invoke the shared skills directly:
 
@@ -71,6 +72,36 @@ Kai and Kevin are both investigators and do not overlap: **Kai works live cases
 with a caller present and teaches through them; Kevin works cold cases from the
 archive, alone, and reports.** They write to different paths so neither
 overwrites the other.
+
+## SHODANN grades the derivative
+
+The seventh entry is the only one reconstructed from a **different repository** —
+`norrisaftcc/algorithm-shodann`, from `design_docs/SHODANN_VOICE_GUIDE.md` and
+`src/shodann/clearance.py`. Like Kevin, she widens the `csi-fork-protocol` rule about
+sources in `artifacts/`, and like Kevin it is stated rather than quietly stretched.
+
+**She measures movement, never absolute position.** That is not a stylistic choice.
+The RED band instruction in `clearance.py` reads: a citizen there *"cannot yet
+calibrate absolute position, so speak only about movement."* A verdict at that band
+measures the ladder rather than the climber.
+
+Two things follow that are worth naming:
+
+- **Her posture changes twice, not once.** She teaches from INFRARED to YELLOW,
+  mentors at GREEN, and reports at BLUE+ — where the `Recommended Iteration` heading
+  becomes `Observations`, because a citizen at that band may have written the standard
+  being applied to them.
+- **Her limits are structural where they can be.** She has no `Write` tool, so the
+  contract term "reviews are spoken, nothing is written" is enforced by the tool list
+  rather than by good intentions — the same way VITA cannot write a student's code.
+
+The velocity-over-position distinction arrived independently in two places: in
+`clearance.py`, and in `floor_test.py --ab`, which measures a persona's *change* in
+voice because drift is invisible to absolute measurement by construction. Neither knew
+about the other.
+
+Whether this persona should also live in `algorithm-shodann`, for that repository's own
+needs, is open and deliberately not decided here.
 
 ## Fidelity notes
 
