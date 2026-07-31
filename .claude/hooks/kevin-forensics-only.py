@@ -27,6 +27,12 @@ import json
 import sys
 import posixpath
 
+# The literal the harness puts in `agent_type` for this agent. Captured from a
+# real invocation on 2026-07-31, not inferred: a live dispatch logged
+# `agent_type: 'kevin'` on every call. Compared case-insensitively anyway,
+# because a mismatch here does not fail loudly - it takes the "not Kevin"
+# branch and allows everything, which is the one silent fail-open this file
+# could still have had. tests/workflow/kevin_scope_test.py pins the casing.
 AGENT = "kevin"
 ALLOWED = "artifacts/forensics"
 
@@ -94,7 +100,9 @@ def main() -> None:
              "not parse. Refusing rather than assuming.")
         return
 
-    if not isinstance(payload, dict) or payload.get("agent_type") != AGENT:
+    agent = payload.get("agent_type")
+    if not isinstance(payload, dict) or not isinstance(agent, str) \
+            or agent.strip().lower() != AGENT:
         allow()
         return
 
@@ -127,6 +135,12 @@ def main() -> None:
              "path. Refusing rather than assuming.")
         return
 
+    # LOAD-BEARING ASSUMPTION: cwd is the repository root, so ALLOWED resolves
+    # against it. If Kevin were ever invoked from a subdirectory the allowed
+    # root would move with it and the boundary would silently follow. The
+    # harness sets cwd to the project root today - the same live dispatch that
+    # confirmed agent_type showed cwd as the repository root on both calls -
+    # and this refuses rather than guesses if it is absent or relative.
     cwd = payload.get("cwd")
     if not isinstance(cwd, str) or not cwd.startswith("/"):
         deny("Kevin's write scope could not be checked: no absolute cwd in "

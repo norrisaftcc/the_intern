@@ -99,6 +99,16 @@ CASES: list[tuple[dict, bool, str]] = [
      True, "an unrecognised tool is refused even with an allowed path - it "
            "means the matcher was widened without the hook being told"),
 
+    # Casing is normalised. A mismatch here would not fail loudly - it would
+    # take the "not Kevin" branch and allow everything.
+    ({"agent_type": "Kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "a differently-cased agent_type is still him"),
+
+    ({"agent_type": " kevin ", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "surrounding whitespace does not let him out"),
+
     # --- and open for everyone else ---
     ({"agent_type": "general-purpose", "cwd": "{repo}",
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},

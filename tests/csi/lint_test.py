@@ -176,13 +176,24 @@ NO_REPAIR_MUST_PASS = [
     "Two workflows reported nothing about the same suite, for two unrelated reasons.",
     "A suite that has never run is an unknown, and an unknown had been reading as a pass.",
     "The condition held for eleven months. Nothing reported it.",
-    # Adversarial: says what a repairer would reach for without prescribing it.
-    # The base-form rule is what lets this through - "selected", not "select".
+    # Attributed hypotheticals. Exact-token matching is what lets these through:
+    # "selected", not "select".
     "Positional indexing failed because the first block was a thinking block. A repair would "
     "have selected on type; naming which is a different seat than mine.",
     "The step selected index zero, which was a thinking block on every run after the model "
     "changed.",
     "Commit 5f6baa3 changed where the workflow lived. Runs concluded success before and after.",
+    # Descriptive register. A review found the first of these tripping an earlier
+    # version, because `index` is a noun in his domain and sat within sixty
+    # characters of "instead of". Requiring the verb in imperative position -
+    # clause-initial or after to/should/must - is what separates them. These are
+    # the cases that keep that requirement from being quietly dropped.
+    "The hook denies index zero instead of the correct block.",
+    "The step wrote to /tmp instead of the repository.",
+    "It reported success rather than the error the API returned.",
+    "The workflow ran the spike instead of the gate.",
+    "The check counted collected tests rather than passing ones.",
+    "The run reported success, not the 404 the API returned, and nothing flagged it.",
 ]
 
 
