@@ -212,6 +212,19 @@ def check_parses() -> list[str]:
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 
 
+def comparable_script(attrs: str, body: str) -> bool:
+    """Whether this script is one the widget comparison can speak about.
+
+    check_shared_widget skips external and `<!--`-bearing scripts; main()'s
+    success line counts inline widgets. Two filters, one definition - they are
+    not reachable out of step today only because the check runs first. Sharing
+    the predicate means a reordering cannot make the count and the comparison
+    disagree.
+    """
+    return ("src=" not in attrs.lower() and "<!--" not in body
+            and bool(body.strip()))
+
+
 def check_shared_widget() -> list[str]:
     """Every inline script under docs/ is the same script.
 
@@ -365,7 +378,17 @@ def media_spans(text: str) -> list[tuple[int, int]]:
     """
     spans = []
     for m in MEDIA_RE.finditer(text):
-        open_i = text.index("{", m.end())
+        # `.index` raised a bare ValueError when a media query had no opening
+        # brace after it. That escaped _read(), which only catches
+        # BlockNotFound, and killed main() with a raw traceback - in the file
+        # whose stated purpose is to fail with a path and a reason instead of
+        # "failing loudly about the wrong thing". Same class as the bug it
+        # describes, in the function that describes it.
+        open_i = text.find("{", m.end())
+        if open_i < 0:
+            raise BlockNotFound(
+                f"@media (prefers-color-scheme: {m.group(1)}) has no opening "
+                "brace after it")
         spans.append((open_i, open_i + len(body_at(text, open_i))))
     return spans
 
@@ -470,10 +493,10 @@ def has_theming(text: str) -> bool:
 class ThemeBlocks:
     """Every theme block in one document, read once.
 
-    Finding 2 on #42: check_theme_parity and check_every_colour_themes each
+    check_theme_parity and check_every_colour_themes each
     re-derived the base :root, the media block and the two data-theme blocks,
-    with their own try/except wording around each. The mutual-deferral bug that
-    round 6 found came from exactly that shape - one function's error handling
+    with their own try/except wording around each. The mutual-deferral bug came
+    from exactly that shape - one function's error handling
     silently depending on the other's, under a combination neither covered.
     Fixing the one combination while leaving the duplication in place invites
     the next one, so the reading happens once and both checks consume it.
@@ -583,7 +606,19 @@ MEDIA_RE_BRACE = re.compile(
     r"@media\s*\(\s*prefers-color-scheme\s*:\s*\w+\s*\)\s*\{", re.I)
 
 
-HARNESS_STEP_RE = re.compile(r"run:\s*python3\s+(tests/\S+\.py)")
+# Deliberately NOT anchored on `run:`. That version matched a single-line
+# `run: python3 <path>` only, so a `run: |` block scalar, a chained
+# `a && b`, or an added flag silently dropped out of the count - and the
+# failure surfaced as this check blaming big-board.html for a number that was
+# actually wrong because of the regex. Checked against a realistic sample:
+# anchored found 1 of 3, unanchored found 3 of 3.
+#
+# yaml.safe_load would be the better tool and is not available: every harness
+# here is standard library only, on purpose, so there is nothing to pin and
+# nothing to go stale. Comment lines are stripped first so prose mentioning a
+# path cannot inflate the count.
+HARNESS_STEP_RE = re.compile(r"python3\s+(tests/\S+\.py)")
+YAML_COMMENT_RE = re.compile(r"^\s*#.*$", re.M)
 BOARD = "docs/big-board.html"
 
 
@@ -605,7 +640,8 @@ def check_board_harness_count() -> list[str]:
     if not board.exists() or not workflow.exists():
         return []
 
-    actual = sorted(set(HARNESS_STEP_RE.findall(read(workflow))))
+    body = YAML_COMMENT_RE.sub("", read(workflow))
+    actual = sorted(set(HARNESS_STEP_RE.findall(body)))
     text = read(board)
     m = re.search(r'data-harness-count="(\d+)"', text)
     if not m:
@@ -638,7 +674,7 @@ def main() -> int:
     # Read once, here. Both theme checks used to build their own ThemeBlocks,
     # and the errors were emitted by whichever of them happened to run - a
     # coupling held by a comment, in a file whose second half is a record of
-    # comment-held couplings failing. Round 6 found one of those; leaving the
+    # comment-held couplings failing. This file has already had one of those; leaving the
     # shape in place invites the next. main() now owns the read and the
     # reporting, so removing or reordering either check cannot make an
     # unreadable block go quiet.
@@ -663,7 +699,7 @@ def main() -> int:
     # claim like any other.
     n_widgets = len({body for path in files
                      for attrs, body in SCRIPT_RE.findall(read(path))
-                     if body.strip() and "src=" not in attrs.lower()})
+                     if comparable_script(attrs, body)})
     widget = ("no inline widget" if n_widgets == 0
               else f"{n_widgets} shared widget")
     print(f"docs artifact test: {len(files)} documents parse whole, "

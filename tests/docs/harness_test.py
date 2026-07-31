@@ -12,7 +12,7 @@ can only exercise the branches those two documents happen to trigger — so an
 edit to `body_at`, `THEME_RE` or `SCRIPT_RE` that reintroduces a false pass
 would be caught by nothing.
 
-It has already shipped three defects of that kind in six rounds:
+It has already shipped three defects of that kind:
 
     a false positive   `<script>` matched bare only, so a divergent
                        `<script type="module">` was not compared at all
@@ -211,17 +211,72 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
 
     ("no documents at all is a failure, not a pass",
      {}, True, "no HTML under docs/"),
+
+    # A media query with no opening brace used to raise a bare ValueError out
+    # of media_spans and kill main() with a traceback - in the file whose whole
+    # promise is a path and a reason instead of a stack.
+    ("a media query with no opening brace reports rather than crashing",
+     {"a.html": doc("  :root { --a: #ffffff; }\n"
+                    "  @media (prefers-color-scheme: dark)\n")},
+     True, "could not be read"),
 ]
 
 
-def run_against(files: dict[str, str]) -> tuple[int, str]:
-    """Point the harness at a scratch docs/ and capture what it reports."""
+# The board-count check needs a workflow to count, so these carry one.
+# (name, board html, workflow yaml, expect_failure, needle)
+BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
+    ("a matching count passes",
+     doc(GOOD_CSS, body='<div data-harness-count="2">x</div>'),
+     "steps:\n  - run: python3 tests/a_test.py\n  - run: python3 tests/b_test.py\n",
+     False, ""),
+
+    ("a wrong count is caught",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  - run: python3 tests/a_test.py\n  - run: python3 tests/b_test.py\n",
+     True, "claims 1 harnesses; checks.yml runs 2"),
+
+    ("no count attribute at all is caught",
+     doc(GOOD_CSS, body="<div>x</div>"),
+     "steps:\n  - run: python3 tests/a_test.py\n",
+     True, "no data-harness-count"),
+
+    # The counter was anchored on `run:` and found 1 of 3 in this shape.
+    ("a run: | block scalar is counted",
+     doc(GOOD_CSS, body='<div data-harness-count="3">x</div>'),
+     ("steps:\n  - run: |\n      python3 tests/a_test.py\n"
+      "      python3 tests/b_test.py\n  - run: python3 tests/c_test.py\n"),
+     False, ""),
+
+    ("a chained command is counted",
+     doc(GOOD_CSS, body='<div data-harness-count="2">x</div>'),
+     "steps:\n  - run: python3 tests/a_test.py && python3 tests/b_test.py\n",
+     False, ""),
+
+    ("a path named only in a comment is not counted",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  # python3 tests/ghost_test.py used to run here\n"
+     "  - run: python3 tests/a_test.py\n",
+     False, ""),
+]
+
+
+def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int, str]:
+    """Point the harness at a scratch docs/ and capture what it reports.
+
+    `workflow` writes a .github/workflows/checks.yml, so the board-count check
+    can be exercised against a real file rather than only against this
+    repository's own - which is the only shape it would otherwise ever see.
+    """
     tmp = Path(tempfile.mkdtemp())
     try:
         docs = tmp / "docs"
         docs.mkdir()
         for name, content in files.items():
             (docs / name).write_text(content, encoding="utf-8")
+        if workflow is not None:
+            wf = tmp / ".github" / "workflows"
+            wf.mkdir(parents=True)
+            (wf / "checks.yml").write_text(workflow, encoding="utf-8")
 
         real_docs, real_repo = A.DOCS, A.REPO
         A.DOCS, A.REPO = docs, tmp
@@ -231,6 +286,12 @@ def run_against(files: dict[str, str]) -> tuple[int, str]:
         builtins.print = lambda *a, **k: buf.append(" ".join(str(x) for x in a))
         try:
             code = A.main()
+        except BaseException as exc:  # noqa: BLE001
+            # A harness that dies with a traceback where it should report is
+            # the failure this whole stack is about. Reverting the media_spans
+            # fix made THIS file crash rather than say which case broke.
+            buf.append(f"the harness raised {type(exc).__name__}: {exc}")
+            code = 1
         finally:
             builtins.print = original
             A.DOCS, A.REPO = real_docs, real_repo
@@ -268,8 +329,26 @@ def check_theme_invariant_exemption() -> list[str]:
     return []
 
 
+def check_board_cases() -> list[str]:
+    """The board-count check, against workflows it would otherwise never see."""
+    out = []
+    for name, board, workflow, expect_failure, needle in BOARD_CASES:
+        code, output = run_against({"big-board.html": board}, workflow=workflow)
+        failed = code != 0
+        if failed != expect_failure:
+            out.append(f"board: {name}\n    expected "
+                       f"{'a failure' if expect_failure else 'a pass'}, got "
+                       f"{'a failure' if failed else 'a pass'}\n"
+                       f"    output: {output.strip()[:300]}")
+        elif expect_failure and needle and needle not in output:
+            out.append(f"board: {name}\n    failed for the wrong reason: "
+                       f"{needle!r} not in the report\n"
+                       f"    output: {output.strip()[:300]}")
+    return out
+
+
 def main() -> int:
-    failures = check_theme_invariant_exemption()
+    failures = check_theme_invariant_exemption() + check_board_cases()
     for name, files, expect_failure, needle in CASES:
         code, output = run_against(files)
         failed = code != 0
@@ -290,8 +369,7 @@ def main() -> int:
         return 1
 
     fails = sum(1 for _, _, e, _ in CASES if e)
-    print(f"harness test: {len(CASES)} cases behave — {fails} that must fail "
-          f"do, {len(CASES) - fails} that must pass do")
+    print(f"harness test: {len(CASES)} document cases and {len(BOARD_CASES)} board-count cases behave — {fails} that must fail do")
     return 0
 
 
