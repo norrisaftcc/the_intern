@@ -30,6 +30,8 @@ Standard library only.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import shutil
 import sys
 import tempfile
@@ -252,6 +254,13 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
      "steps:\n  - run: python3 tests/a_test.py && python3 tests/b_test.py\n",
      False, ""),
 
+    # Greedy \S+ with no trailing anchor captured `tests/foo.py` out of
+    # `tests/foo.pyx`, inflating the count against a file that does not run.
+    ("a .pyx path is not counted as a .py harness",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  - run: python3 tests/a_test.py\n  - run: python3 tests/b.pyx\n",
+     False, ""),
+
     ("a path named only in a comment is not counted",
      doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
      "steps:\n  # python3 tests/ghost_test.py used to run here\n"
@@ -281,11 +290,13 @@ def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int
         real_docs, real_repo = A.DOCS, A.REPO
         A.DOCS, A.REPO = docs, tmp
         buf: list[str] = []
-        import builtins
-        original = builtins.print
-        builtins.print = lambda *a, **k: buf.append(" ".join(str(x) for x in a))
+        # contextlib.redirect_stdout rather than monkeypatching builtins.print:
+        # the stdlib primitive exists for this and does not interact oddly with
+        # a runner that also patches print.
+        sink = io.StringIO()
         try:
-            code = A.main()
+            with contextlib.redirect_stdout(sink):
+                code = A.main()
         except BaseException as exc:  # noqa: BLE001
             # A harness that dies with a traceback where it should report is
             # the failure this whole stack is about. Reverting the media_spans
@@ -293,9 +304,8 @@ def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int
             buf.append(f"the harness raised {type(exc).__name__}: {exc}")
             code = 1
         finally:
-            builtins.print = original
             A.DOCS, A.REPO = real_docs, real_repo
-        return code, "\n".join(buf)
+        return code, sink.getvalue() + "\n".join(buf)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

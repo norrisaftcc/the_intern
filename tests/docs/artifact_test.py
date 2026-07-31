@@ -212,17 +212,31 @@ def check_parses() -> list[str]:
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 
 
-def comparable_script(attrs: str, body: str) -> bool:
-    """Whether this script is one the widget comparison can speak about.
+def script_problem(attrs: str, body: str) -> str | None:
+    """Why this script cannot be compared, or None if it can.
 
-    check_shared_widget skips external and `<!--`-bearing scripts; main()'s
-    success line counts inline widgets. Two filters, one definition - they are
-    not reachable out of step today only because the check runs first. Sharing
-    the predicate means a reordering cannot make the count and the comparison
-    disagree.
+    Returns the complaint rather than a bool because check_shared_widget must
+    say why it is skipping - silence there is the thing being guarded against -
+    while main()'s count only needs the verdict. One definition, two readings.
+
+    The first version of this was a bool that only main() called, while
+    check_shared_widget kept its three conditions inline: a helper written to
+    stop two filters drifting, used by one of them. The drift it warns about,
+    in its own introduction.
     """
-    return ("src=" not in attrs.lower() and "<!--" not in body
-            and bool(body.strip()))
+    if "src=" in attrs.lower():
+        return ("loads an external script. This harness cannot compare it, and "
+                "a standalone document should not need one.")
+    if "<!--" in body:
+        return ("contains `<!--`, which opens the double-escaped state where "
+                "`</script>` no longer ends the element. This harness reads "
+                "scripts with a regex that cannot follow that. Remove it, or "
+                "teach this check.")
+    return None
+
+
+def comparable_script(attrs: str, body: str) -> bool:
+    return script_problem(attrs, body) is None and bool(body.strip())
 
 
 def check_shared_widget() -> list[str]:
@@ -241,26 +255,9 @@ def check_shared_widget() -> list[str]:
 
     for path in html_files():
         for attrs, body in SCRIPT_RE.findall(read(path)):
-            if "src=" in attrs.lower():
-                # An external script has no body to compare. It also cannot be
-                # checked by this harness at all, so it is named rather than
-                # skipped: silence here is the thing being guarded against.
-                out.append(f"{rel(path)}: loads an external script "
-                           f"(<script{attrs}>). This harness cannot compare it, "
-                           "and a standalone document should not need one.")
-                continue
-            if "<!--" in body:
-                # The one case where this regex genuinely disagrees with the
-                # parser: `<!--` inside a script opens the double-escaped
-                # state, in which `</script>` no longer ends the element. The
-                # docstring named this as "nothing here uses it", which is a
-                # gap with no guard - true until someone pastes a comment
-                # guard into the widget. Refused rather than mis-parsed.
-                out.append(f"{rel(path)}: an inline script contains `<!--`, "
-                           "which opens the double-escaped state where "
-                           "`</script>` no longer ends the element. This "
-                           "harness reads scripts with a regex that cannot "
-                           "follow that. Remove it, or teach this check.")
+            problem = script_problem(attrs, body)
+            if problem is not None:
+                out.append(f"{rel(path)}: an inline script {problem}")
                 continue
             if body.strip():
                 where = rel(path) + (f" (<script{attrs}>)" if attrs.strip() else "")
@@ -617,7 +614,11 @@ MEDIA_RE_BRACE = re.compile(
 # here is standard library only, on purpose, so there is nothing to pin and
 # nothing to go stale. Comment lines are stripped first so prose mentioning a
 # path cannot inflate the count.
-HARNESS_STEP_RE = re.compile(r"python3\s+(tests/\S+\.py)")
+# `(?!\S)` is load-bearing. Without it, greedy \S+ backtracks to find any
+# `.py` substring, so `tests/foo.pyx` and `tests/foo.py_disabled` both captured
+# as `tests/foo.py` - a regex disagreeing with reality, in the counter that
+# exists to stop a document disagreeing with reality.
+HARNESS_STEP_RE = re.compile(r"python3\s+(tests/\S+\.py)(?!\S)")
 YAML_COMMENT_RE = re.compile(r"^\s*#.*$", re.M)
 BOARD = "docs/big-board.html"
 
