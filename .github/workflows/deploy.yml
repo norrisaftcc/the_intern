@@ -28,10 +28,34 @@ jobs:
         pip install -r requirements.txt
         pip install pytest pytest-asyncio
     
-    - name: Run tests
+    # The gate, run the way the gate is written.
+    #
+    # This step ran `pytest tests/` against a directory that has never existed
+    # in this repository, so it exited 4 - a usage error, not a test result -
+    # on every run it ever reached. It could not reach many: deploy.yml spent
+    # about a year at a path Actions does not read, and before that
+    # requirements.txt pinned adventurelib==2.0.0, which was never published.
+    # Three obstacles in series, each hiding the next. See TESTING.md.
+    #
+    # Pytest was never going to work here regardless of the path. These files
+    # contain zero `def test_*` functions; the one `class Test*` is
+    # `TestResult`, a dataclass pytest declines to collect. They are scripts
+    # with a main() that returns a pass/fail, which is the convention
+    # CLAUDE.md documents. Pointing pytest at the right directory would have
+    # moved exit 4 to exit 5 - "no tests collected" - and told nobody anything.
+    #
+    # test_trigger.py is not in this list. It is three comment lines with no
+    # code, written to poke the review workflow into running. It is named
+    # test_* and it is not a test.
+    - name: Run the backend gate
       run: |
+        set -euo pipefail
         cd projects/algocratic-futures/backend
-        pytest tests/ -v
+        for gate in test_agent_tiers.py test_liza_flash_compatibility.py; do
+          echo "::group::$gate"
+          python "$gate"
+          echo "::endgroup::"
+        done
     
     - name: Check clearance system integrity
       run: |

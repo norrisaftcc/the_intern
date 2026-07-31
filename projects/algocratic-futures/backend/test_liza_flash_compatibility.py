@@ -6,6 +6,7 @@ Specialized testing for fast model compatibility with specific validation criter
 import time
 import re
 import json
+from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from agent_prompts_tiered import LIZA_FLASH_PROMPT, PromptSelector
@@ -471,8 +472,12 @@ def main():
         'timestamp': time.time()
     }
     
-    # Save results for analysis
-    with open('/Users/norrisa/Documents/dev/github/the_intern/projects/algocratic-futures/backend/liza_flash_test_results.json', 'w') as f:
+    # Save results for analysis, beside this file rather than beside whoever
+    # happens to be running it. The absolute path this replaces pointed at one
+    # laptop and could not resolve anywhere else, so every run outside that
+    # machine crashed here - after all five checks had already passed.
+    results_path = Path(__file__).resolve().parent / 'liza_flash_test_results.json'
+    with open(results_path, 'w') as f:
         json.dump(test_data, f, indent=2)
     
     print(f"\nTest results saved to: liza_flash_test_results.json")

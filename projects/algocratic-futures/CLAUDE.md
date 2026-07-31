@@ -29,7 +29,7 @@ Terminal MUD → Room System (YAML) → Agent System → Future WebSocket Layer
 - YAML-based room system with corporate/reality dual descriptions
 - Liza agent with tiered personality responses
 - Basic conversation system with keyword triggers
-- Test suite passing (4/4 tests)
+- Backend gate passing (`test_agent_tiers.py`, `test_liza_flash_compatibility.py`)
 
 ⚠️ **What's Partially Working:**
 - Frontend exists but WebSocket not connected
@@ -105,12 +105,13 @@ rooms/
 ```bash
 cd backend
 source venv/bin/activate  # If venv exists
-python launch_mvp.py      # Shows menu
+python terminal_mud.py    # Start the game
 ```
 
 ### Test Everything
 ```bash
-python test_mvp.py        # Quick validation
+python test_agent_tiers.py               # Agent tiers
+python test_liza_flash_compatibility.py  # Liza on Flash
 python app.py            # Start API server
 ```
 
@@ -140,7 +141,7 @@ python app.py            # Start API server
 ## Testing Checklist
 
 Before committing:
-1. Run `python test_mvp.py` - all 4 tests should pass
+1. Run the backend gate - `test_agent_tiers.py` and `test_liza_flash_compatibility.py`
 2. Start game, navigate rooms, talk to Liza
 3. Check that hidden exits work (tunnel from boardwalk)
 4. Verify no import errors in any module
@@ -160,7 +161,7 @@ Sweeney (Green clearance/PM) is leading development. Kevin offered GitHub automa
 
 ## Contact & Context
 
-- Main repo: `/Users/norrisa/Documents/dev/github/the_intern`
+- Main repo: `norrisaftcc/the_intern`
 - Project home: `projects/algocratic-futures/`
 - Current branch: `feature/algocratic-base-platform`
 - Last standup: See `docs/STANDUP_NOTES.md`
