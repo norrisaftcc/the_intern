@@ -62,7 +62,7 @@ VOID = {
 }
 
 
-class Document(HTMLParser):
+class ArtifactDocument(HTMLParser):
     """Tag balance and scaffolding, both read from the parse rather than the text.
 
     The scaffolding was checked by substring match in the first version, which
@@ -149,7 +149,7 @@ def check_parses() -> list[str]:
     """
     out = []
     for path in html_files():
-        doc = Document()
+        doc = ArtifactDocument()
         doc.feed(read(path))
         for missing in doc.scaffolding():
             out.append(f"{rel(path)}: missing {missing} — a fragment, not a "
@@ -168,6 +168,18 @@ def check_parses() -> list[str]:
 # whose widgets differed. Verified as a real false pass before this was
 # changed, not reasoned about. A check that goes quiet exactly when someone
 # deviates is the defect this file exists to catch, and it was in this file.
+#
+# Non-greedy to the first `</script>`, which was raised in review as the same
+# fragility the CSS scanner has - a `</script>` inside a JS string would end
+# the match early. Checked rather than assumed, and the premise does not hold:
+# an unescaped `</script>` inside a string ends the *element* too. HTML has no
+# escaping inside raw text, which is why the idiom is to write `<\/script>`.
+#
+#     >>> feed('<script>var s = "</script>"; alert(1)</script>')
+#     script body: 'var s = "'
+#
+# So this agrees with the parser rather than approximating it. The genuine edge
+# is the double-escaped state a `<!--` opens, which nothing here uses.
 SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 
 
@@ -211,7 +223,51 @@ def check_shared_widget() -> list[str]:
     return out
 
 
-DECL_RE = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
+DECL_NAME_RE = re.compile(r"^\s*(--[\w-]+)\s*:\s*(.*)$", re.S)
+
+
+def declarations(css: str) -> list[str]:
+    """Split a declaration block on the semicolons that actually separate it.
+
+    `([^;]+);` was the first version and it truncates `content: ";"` at the
+    quote's semicolon. `body_at` already had to learn strings and comments to
+    count braces safely; splitting declarations needs the same knowledge and
+    was written without it, which is how one function in a file ends up
+    stricter than another about the same input.
+    """
+    parts, buf, quote, i, n = [], [], None, 0, len(css)
+    while i < n:
+        c = css[i]
+        if quote:
+            buf.append(c)
+            if c == "\\" and i + 1 < n:
+                buf.append(css[i + 1])
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+        elif c in "\"'":
+            quote = c
+            buf.append(c)
+        elif c == "/" and css.startswith("/*", i):
+            end = css.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        elif c in ";{}":
+            # Braces separate as well as semicolons. The media blocks here wrap
+            # a nested `:root { ... }`, so splitting on `;` alone glued the
+            # selector onto the first declaration and lost it - which the
+            # harness caught the moment it ran, reporting the first token of
+            # every media block as missing. Left as a comment because the
+            # regex this replaced did not have the bug, and a fix that
+            # introduces one is worth marking.
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(c)
+        i += 1
+    parts.append("".join(buf))
+    return parts
 MEDIA_RE = re.compile(r"@media\s*\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", re.I)
 BASE_ROOT_RE = re.compile(r":root\s*\{")
 THEME_RE = r':root\s*\[\s*data-theme\s*=\s*["\']{name}["\']\s*\]\s*\{{'
@@ -307,19 +363,39 @@ def check_every_colour_themes() -> list[str]:
     out = []
     for path in html_files():
         text = read(path)
+        if not has_theming(text):
+            continue
+
+        # Reported here rather than deferred. The previous version said
+        # `except BlockNotFound: continue  # check_theme_parity reports this`,
+        # which was true only when a data-theme block also existed -
+        # check_theme_parity short-circuits before reading the base when there
+        # is none. So a document with a prefers-color-scheme query, no
+        # data-theme block, and an unreadable base :root passed BOTH checks and
+        # printed "every colour themes, both routes agree". Reproduced as a
+        # real file before this was changed, not reasoned about.
+        #
+        # Two functions each deferring to the other, through a comment
+        # promising the other would catch it. That is the third time in this
+        # file that a comment has been asked to do a check's job, and it is
+        # what the file is about.
         try:
             base = tokens(block(text, BASE_ROOT_RE, outside_media=True))
-        except BlockNotFound:
-            continue  # check_theme_parity reports this; not doubled here
+        except BlockNotFound as exc:
+            out.append(f"{rel(path)}: this document themes, but its base :root "
+                       f"could not be read ({exc}). This is a failure of this "
+                       "check, not a colour mismatch.")
+            continue
 
         overrides: dict[str, dict[str, str]] = {}
-        if MEDIA_RE.search(text):
+        media = MEDIA_RE.search(text)
+        if media:
             try:
-                name = MEDIA_RE.search(text).group(1).lower()
-                overrides[f"prefers-color-scheme:{name}"] = tokens(
-                    block(text, MEDIA_RE_BRACE))
-            except BlockNotFound:
-                pass
+                overrides[f"prefers-color-scheme:{media.group(1).lower()}"] = (
+                    tokens(block(text, MEDIA_RE_BRACE)))
+            except BlockNotFound as exc:
+                out.append(f"{rel(path)}: could not read the "
+                           f"prefers-color-scheme block ({exc}).")
         for name in ("light", "dark"):
             try:
                 overrides[f'data-theme="{name}"'] = tokens(
@@ -368,7 +444,23 @@ def block(text: str, pattern: re.Pattern[str], *, outside_media: bool = False) -
 
 
 def tokens(css: str) -> dict[str, str]:
-    return {m.group(1): m.group(2).strip() for m in DECL_RE.finditer(css)}
+    out = {}
+    for decl in declarations(css):
+        m = DECL_NAME_RE.match(decl)
+        if m:
+            out[m.group(1)] = m.group(2).strip()
+    return out
+
+
+def has_theming(text: str) -> bool:
+    """Whether this document claims to theme at all.
+
+    A page with no custom properties and no colour-scheme handling has no base
+    :root to find, and demanding one would fail documents that are simply not
+    themed. A page that has either apparatus must have a readable base.
+    """
+    return bool(MEDIA_RE.search(text)) or any(
+        re.search(THEME_RE.format(name=n), text) for n in ("light", "dark"))
 
 
 def check_theme_parity() -> list[str]:
