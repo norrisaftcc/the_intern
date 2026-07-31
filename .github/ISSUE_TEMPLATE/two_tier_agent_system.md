@@ -67,10 +67,17 @@ Create two distinct prompt tiers following the beta/gamma fork pattern:
 ## Technical Specifications
 
 ### Files to Modify/Create
-- `/agent_prompts_tiered.py` - Core implementation (EXISTING)
-- `/test_agent_tiers.py` - Test suite (EXISTING)
-- `/agent_system.py` - Integration point
-- `/.github/workflows/agent_tier_tests.yml` - CI automation
+- `projects/algocratic-futures/backend/agent_prompts_tiered.py` - Core implementation (EXISTING)
+- `projects/algocratic-futures/backend/test_agent_tiers.py` - Test suite (EXISTING)
+- `projects/algocratic-futures/backend/agent_system.py` - Integration point
+- CI automation - already covered by `.github/workflows/checks.yml` and the gate
+  in `.github/workflows/deploy.yml`; do not add a fourth workflow for it
+
+<!-- These paths were root-relative and wrong. `agent_tier_tests.yml` copied
+     them into its `paths:` filter verbatim, which is why that workflow never
+     triggered once in its lifetime and was deleted on 2026-07-31. Corrected
+     here so filling in this template does not recreate the same defect. -->
+
 
 ### Model Classification
 ```python

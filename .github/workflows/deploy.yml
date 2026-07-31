@@ -62,19 +62,54 @@ jobs:
         cd projects/algocratic-futures/backend
         python -c "from clearance_system import ClearanceLevel; assert ClearanceLevel.UV == 9"
 
+  # STUB. This job does not run and did not work when it did. Kept as a record
+  # of intent, disabled so it stops reporting a failure it cannot fix.
+  #
+  # It ran 7 times on main between 2025-08-20 and 2026-07-31 and failed 7
+  # times, every one of them on the first step:
+  #
+  #   ERROR: failed to build: failed to solve: failed to read dockerfile:
+  #          open Dockerfile: no such file or directory
+  #
+  # There is no Dockerfile in this repository and there never has been. The
+  # step behind it, which therefore never executed once, was two echoes -
+  # `echo "Deployment would happen here"`. So the job could not build, and
+  # would have deployed nothing if it had. Both halves are preserved below,
+  # unedited, because a stub that quietly tidies up what it is stubbing
+  # destroys the evidence of what was actually here.
+  #
+  # WHY THIS IS DISABLED RATHER THAN DELETED: nobody has claimed a deploy
+  # target. Deleting says there will never be one; leaving it live says there
+  # is one today. `if: false` says what is true - it was intended, it does not
+  # work, and the decision is open. Delete this job if the answer turns out to
+  # be no.
+  #
+  # WHY IT MATTERS THAT IT WAS RED: main carried a failing check continuously
+  # for a year. A default branch that is always red teaches every reader that
+  # red on main means nothing, which is the condition under which
+  # ai-code-review.yml reported success for a year with nobody looking. The
+  # broken deploy did not cause that; it removed the signal that would have
+  # caught it. Turning main green is the point of this change, not a side
+  # effect of it.
+  #
+  # TO REVIVE: write projects/algocratic-futures/Dockerfile, replace the echo
+  # step with a deployment that deploys, and only then remove `if: false`. The
+  # order matters - restoring the trigger first gets a red main back, and
+  # fixing only the Dockerfile makes a job that deploys nothing report success,
+  # which is worse than the failure it replaced. See #39.
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
+    if: false  # was: github.ref == 'refs/heads/main'
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Build Docker image
       run: |
         cd projects/algocratic-futures
         docker build -t algocratic-futures:latest .
-    
+
     - name: Deploy to production
       run: |
         echo "Deployment would happen here"
