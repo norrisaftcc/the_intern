@@ -119,8 +119,8 @@ class ArtifactDocument(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.stack: list[tuple[str, int]] = []
         self.errors: list[str] = []
-        self.scripts: list[tuple[dict, str]] = []
-        self._script: list | None = None
+        self.scripts: list[tuple[dict[str, str], str]] = []
+        self._script: list[object] | None = None
         self.doctype = False
         self.charset = False
         self.body = False
@@ -259,7 +259,7 @@ def check_parses(docs: Path, repo: Path) -> list[str]:
 # Scripts now come off the same parse as the tag balance. There is one reader.
 
 
-def scripts_in(path: Path) -> list[tuple[dict, str]]:
+def scripts_in(path: Path) -> list[tuple[dict[str, str], str]]:
     """Every <script> in a document, off the same parse as the tag balance."""
     doc = ArtifactDocument()
     doc.feed(read(path))
@@ -600,7 +600,9 @@ def is_colour(value: str) -> bool:
         return True
     if v.startswith("var("):
         # Indirection through another custom property. The target is themed or
-        # it is not, and this check will reach it under its own name.
+        # it is not, and this check reaches it under its own name - PROVIDED it
+        # exists. check_dangling_var below is what makes that proviso true; on
+        # its own this line trusts any var() including a typo.
         return True
     return v in CSS_NAMED_COLOURS or v in {"transparent", "currentcolor"}
 
@@ -612,6 +614,33 @@ def is_colour(value: str) -> bool:
 # heuristic quietly opens. Adding to this is a claim that the colour reads
 # correctly on both grounds, which is a thing to check by looking.
 THEME_INVARIANT: set[str] = set()
+
+
+VAR_REF_RE = re.compile(r"var\(\s*(--[\w-]+)")
+
+
+def check_dangling_var(all_blocks: list[ThemeBlocks], repo: Path) -> list[str]:
+    """A var() must name a custom property that is declared somewhere.
+
+    is_colour() treats any `var(...)` as a colour on the reasoning that the
+    target themes under its own name. That is true of a reference that
+    resolves and false of a typo, which would otherwise sail through the very
+    check written to stop a colour going unnoticed.
+    """
+    out = []
+    for blocks in all_blocks:
+        declared = set(blocks.base or {})
+        for toks in blocks.overrides().values():
+            declared |= set(toks)
+        declared |= set(re.findall(r"(--[\w-]+)\s*:", blocks.text))
+        for key, value in sorted((blocks.base or {}).items()):
+            for ref in VAR_REF_RE.findall(value):
+                if ref not in declared:
+                    out.append(
+                        f"{rel(blocks.path, repo)}: {key} is {value}, and "
+                        f"{ref} is never declared in this document - a "
+                        "dangling var() reference reads as themed and is not.")
+    return out
 
 
 def check_every_colour_themes(all_blocks: list[ThemeBlocks], repo: Path,
@@ -775,6 +804,7 @@ MEDIA_RE_BRACE = re.compile(
 # exists to stop a document disagreeing with reality.
 HARNESS_STEP_RE = re.compile(r"python3\s+(tests/\S+\.py)(?!\S)")
 YAML_COMMENT_RE = re.compile(r"^\s*#.*$", re.M)
+NAME_FIELD_RE = re.compile(r"^\s*-?\s*name:.*$", re.M)
 BOARD = "docs/big-board.html"
 
 
@@ -830,8 +860,18 @@ def check_board_harness_count(repo: Path) -> list[str]:
     if not board.exists() or not workflow.exists():
         return []
 
-    body = run_blocks(YAML_COMMENT_RE.sub("", read(workflow)))
-    actual = sorted(set(HARNESS_STEP_RE.findall(body)))
+    stripped = YAML_COMMENT_RE.sub("", read(workflow))
+    # Counted from the shell of `run:` steps only. Mentioned from everything
+    # except `name:` values, which are prose.
+    #
+    # These were one scan until a review pointed out that narrowing to `run:`
+    # - the fix for a step NAMED after a test file - had made a `uses:` step
+    # referencing a test path invisible. One fix, one new hole, in consecutive
+    # rounds. Excluding the prose field rather than including only one field
+    # covers both: `with:` inputs and `uses:` paths stay visible, and a step
+    # name cannot fail the build.
+    actual = sorted(set(HARNESS_STEP_RE.findall(run_blocks(stripped))))
+    body = NAME_FIELD_RE.sub("", stripped)
 
     # Anything under tests/ that this counter cannot attribute to a
     # `python3 <path>` invocation is named rather than dropped. A step using
@@ -880,6 +920,19 @@ def main(docs_root: Path | None = None, repo_root: Path | None = None,
     repo = repo_root if repo_root is not None else REPO
     invariant = theme_invariant if theme_invariant is not None else THEME_INVARIANT
 
+    # BEFORE the docs/ existence test, deliberately. A file at the wrong depth
+    # computes a wrong DOCS, so the symptom is "docs/ is missing" and the
+    # reader goes hunting for deleted documents. check_layout is the diagnosis
+    # and it was running after the symptom - failing loudly about the wrong
+    # thing, which is what this file spends its docstring objecting to. Found
+    # by writing the adversarial case a review pointed out was missing.
+    layout = check_layout()
+    if layout:
+        print("docs artifact test: FAILED")
+        for line in layout:
+            print(f"  {line}")
+        return 1
+
     if not docs.is_dir():
         print("docs artifact test: FAILED")
         print("  docs/ is missing; this check cannot run, which is a failure "
@@ -902,12 +955,12 @@ def main(docs_root: Path | None = None, repo_root: Path | None = None,
     all_blocks = [ThemeBlocks(path, repo) for path in files]
     block_errors = [err for blocks in all_blocks for err in blocks.errors]
 
-    failures = (check_layout()
-                + check_parses(docs, repo)
+    failures = (check_parses(docs, repo)
                 + check_shared_widget(docs, repo)
                 + block_errors
                 + check_theme_parity(all_blocks, repo)
                 + check_every_colour_themes(all_blocks, repo, invariant)
+                + check_dangling_var(all_blocks, repo)
                 + check_board_harness_count(repo))
 
     if failures:

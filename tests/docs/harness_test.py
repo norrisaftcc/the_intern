@@ -33,6 +33,8 @@ from __future__ import annotations
 import contextlib
 import importlib.util
 import io
+import re
+import subprocess
 import shutil
 import sys
 import tempfile
@@ -41,8 +43,9 @@ from pathlib import Path
 # Loaded by explicit path rather than by putting a directory on sys.path and
 # hoping this is the `artifact_test` that gets found. There is only one today;
 # the import should not depend on that staying true.
+SOURCE = Path(__file__).resolve().parent / "artifact_test.py"
 _SPEC = importlib.util.spec_from_file_location(
-    "artifact_test", Path(__file__).resolve().parent / "artifact_test.py")
+    "artifact_test", SOURCE)
 A = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(A)
 
@@ -350,6 +353,13 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
      "steps:\n  - run: python3 tests/a_test.py\n  - run: pytest tests/b_test.py\n",
      True, "cannot read"),
 
+    ("a uses: step referencing a test path is still reported",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  - uses: ./.github/actions/run-harness\n"
+     "    with:\n      script: tests/ghost_test.py\n"
+     "  - run: python3 tests/a_test.py\n",
+     True, "cannot read"),
+
     ("a test path named in a step name is not counted as an invocation",
      doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
      "steps:\n  - name: run tests/ghost_test.py nightly\n"
@@ -410,6 +420,38 @@ def run_against(files: dict[str, str], workflow: str | None = None,
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def check_layout_guard() -> list[str]:
+    """check_layout must fire when the file is at the wrong depth.
+
+    It was the only check in artifact_test.py with no adversarial case - and
+    the most brittle, since it hard-codes a path depth. "The harness has a
+    harness" with one unverified exception is the shape this whole stack
+    exists to remove, so the exception gets a case.
+
+    Run as a subprocess from a copy at the wrong depth, because the check reads
+    __file__ and an in-process import would still see the real one.
+    """
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        # One level too shallow: <tmp>/docs/artifact_test.py, so parents[2]
+        # points above tmp and the reconstructed path cannot match.
+        wrong = tmp / "docs"
+        wrong.mkdir(parents=True)
+        shutil.copy(SOURCE, wrong / "artifact_test.py")
+        (tmp / "docs" / "x.html").write_text(doc(GOOD_CSS), encoding="utf-8")
+        proc = subprocess.run([sys.executable, str(wrong / "artifact_test.py")],
+                              capture_output=True, text=True, timeout=60)
+        if proc.returncode == 0:
+            return ["artifact_test.py run from the wrong depth exited 0; "
+                    "check_layout did not fire"]
+        if "parents[2] resolves to" not in proc.stdout + proc.stderr:
+            return ["artifact_test.py run from the wrong depth failed, but not "
+                    f"with check_layout's message: {(proc.stdout + proc.stderr).strip()[:200]}"]
+        return []
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def check_colour_list_is_complete() -> list[str]:
     """The named-colour set must stay the whole set.
 
@@ -418,8 +460,18 @@ def check_colour_list_is_complete() -> list[str]:
     Pinned by count so an accidental edit trips this rather than drifting back
     into that shape.
     """
+    # Also checked for duplicates: the frozenset would collapse a repeated
+    # keyword, so adding one and dropping another leaves the count at 148 and
+    # the set one keyword short. Counting raw tokens is what notices.
+    raw = re.search(r'CSS_NAMED_COLOURS = frozenset\("""(.*?)"""', SOURCE.read_text(),
+                    re.S).group(1).split()
     n = len(A.CSS_NAMED_COLOURS)
     out = []
+    if len(raw) != n:
+        dupes = sorted({w for w in raw if raw.count(w) > 1})
+        out.append(f"CSS_NAMED_COLOURS lists {len(raw)} keywords but holds {n}; "
+                   f"duplicated: {dupes}. A duplicate hides a dropped keyword "
+                   "from the count check below.")
     # 148 = the CSS Color Module Level 4 <named-color> keyword set. Not a
     # magic number: 147 from CSS Color 3, plus `rebeccapurple` added in Level
     # 4. `transparent` and `currentColor` are separate keywords and are handled
@@ -532,6 +584,7 @@ def check_board_cases() -> list[str]:
 
 def main() -> int:
     failures = (check_theme_invariant_exemption() + check_board_cases()
+                + check_layout_guard()
                 + check_colour_list_is_complete() + check_exemption_is_exact()
                 + check_parallel_safe())
     for name, files, expect_failure, needle in CASES:
