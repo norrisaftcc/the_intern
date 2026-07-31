@@ -136,6 +136,21 @@
   }
   .dek strong { color: var(--ink); font-weight: 600; }
 
+  /* Reads at the top rather than only in the footer. A page that calls itself
+     a board and quietly stops being true is the defect this page is about. */
+  .stale {
+    margin: 0 0 18px;
+    padding: 11px 14px;
+    max-width: 68ch;
+    background: var(--raised);
+    border-left: 3px solid var(--warn);
+    border-radius: 0 4px 4px 0;
+    color: var(--ink-2);
+    font-size: 13.5px;
+  }
+  .stale strong { color: var(--warn); font-weight: 600; }
+  .stale code { font-family: var(--mono); font-size: .89em; color: var(--accent); }
+
   /* ---------- tabs ---------- */
   .tabs {
     display: flex;
@@ -395,6 +410,12 @@
       <span>31 Jul 2026 · 22:2x UTC</span>
     </div>
     <h1>The Big Board</h1>
+    <p class="stale" role="note">
+      <strong>Static snapshot, not a live board.</strong> Every number here was read off
+      <code>a438536</code> and the API at the time above. It does not update, and it goes wrong on
+      the next merge rather than going blank. Check the issue list before trusting any count on
+      this page.
+    </p>
     <p class="dek">Two days of work on a repository whose checks reported success without checking.
       Six harnesses now run in CI where none ran before, and the last always-red job on
       <code>main</code> has stopped lying. <strong>Filled marks are verified by a run; hollow marks are

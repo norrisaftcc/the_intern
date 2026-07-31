@@ -119,3 +119,17 @@ jobs:
 
       - name: Kevin's write scope is enforced, not promised
         run: python3 tests/workflow/kevin_scope_test.py
+
+      # The documents under docs/ were verified once, by hand, off CI - which
+      # is the standard this repository already rejected for the SHODANN
+      # shared base, where two copies expected to move together got a version
+      # stamp and a lint check because comparing bytes by hand was judged
+      # insufficient. Two copies of a tab widget in one repository got a
+      # comment instead. This is that comment turned into a check.
+      #
+      # Deliberately persona-unaware: floor_test.py is scoped to .claude/
+      # because docs/csi/ROSTER.md describes the shared-base arrangement
+      # without being one and would false-positive if swept in. This reads no
+      # prose, only structure.
+      - name: Documents under docs/ are checked, not vouched for
+        run: python3 tests/docs/artifact_test.py
