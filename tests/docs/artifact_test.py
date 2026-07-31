@@ -77,6 +77,11 @@ def check_layout() -> list[str]:
     because the one importer does so from the real path; coverage, a linter or
     a doc tool would trip it.
     """
+    # The literal "tests/docs" below is coupled to where this file lives. If
+    # the directory is renamed, this fails with a message about parents[2]
+    # rather than about the rename - correct verdict, imprecise reason. Stated
+    # rather than solved: the alternative is a marker file, which an earlier
+    # round rejected because a nested repository satisfies it by accident.
     here = Path(__file__).resolve()
     if here != here.parents[2] / "tests" / "docs" / "artifact_test.py":
         return [f"parents[2] resolves to {here.parents[2]}, which would put "
@@ -202,19 +207,19 @@ class ArtifactDocument(HTMLParser):
         return missing
 
 
-def html_files() -> list[Path]:
-    return sorted(DOCS.rglob("*.html"))
+def html_files(docs: Path) -> list[Path]:
+    return sorted(docs.rglob("*.html"))
 
 
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def rel(path: Path) -> str:
-    return str(path.relative_to(REPO))
+def rel(path: Path, repo: Path) -> str:
+    return str(path.relative_to(repo))
 
 
-def check_parses() -> list[str]:
+def check_parses(docs: Path, repo: Path) -> list[str]:
     """Every document is a whole document, and its tags balance.
 
     The scaffolding half exists because both of these shipped as *fragments*
@@ -223,16 +228,16 @@ def check_parses() -> list[str]:
     unspecified. Correct where they were rendered, wrong in a repository.
     """
     out = []
-    for path in html_files():
+    for path in html_files(docs):
         doc = ArtifactDocument()
         doc.feed(read(path))
         for missing in doc.scaffolding():
-            out.append(f"{rel(path)}: missing {missing} — a fragment, not a "
+            out.append(f"{rel(path, repo)}: missing {missing} — a fragment, not a "
                        "document. It will parse in quirks mode.")
         for err in doc.errors:
-            out.append(f"{rel(path)}: {err}")
+            out.append(f"{rel(path, repo)}: {err}")
         for tag, line in doc.stack:
-            out.append(f"{rel(path)}: <{tag}> opened on line {line}, never closed")
+            out.append(f"{rel(path, repo)}: <{tag}> opened on line {line}, never closed")
     return out
 
 
@@ -297,7 +302,7 @@ def comparable_script(attrs: dict, body: str) -> bool:
     return script_problem(attrs, body) is None and bool(body.strip())
 
 
-def check_shared_widget() -> list[str]:
+def check_shared_widget(docs: Path, repo: Path) -> list[str]:
     """Every inline script under docs/ is the same script.
 
     Today that is the tab widget, in two files. The rule is stated as "all of
@@ -311,11 +316,11 @@ def check_shared_widget() -> list[str]:
     out: list[str] = []
     scripts: dict[str, list[str]] = {}
 
-    for path in html_files():
+    for path in html_files(docs):
         for attrs, body in scripts_in(path):
             problem = script_problem(attrs, body)
             if problem is not None:
-                out.append(f"{rel(path)}: an inline script {problem}")
+                out.append(f"{rel(path, repo)}: an inline script {problem}")
                 continue
             if body.strip():
                 # Keyed on (type, body), not body alone. A module script runs
@@ -326,7 +331,7 @@ def check_shared_widget() -> list[str]:
                 # fixed for its mirror image.
                 kind = attrs.get("type", "classic").strip().lower() or "classic"
                 shown = " ".join(f'{k}="{v}"' for k, v in sorted(attrs.items()))
-                where = rel(path) + (f" (<script {shown}>)" if shown else "")
+                where = rel(path, repo) + (f" (<script {shown}>)" if shown else "")
                 scripts.setdefault((kind, body), []).append(where)
 
     if len(scripts) > 1:
@@ -451,6 +456,64 @@ def media_spans(text: str) -> list[tuple[int, int]]:
     return spans
 
 
+class ThemeBlocks:
+    """Every theme block in one document, read once.
+
+    check_theme_parity and check_every_colour_themes each
+    re-derived the base :root, the media block and the two data-theme blocks,
+    with their own try/except wording around each. The mutual-deferral bug came
+    from exactly that shape - one function's error handling
+    silently depending on the other's, under a combination neither covered.
+    Fixing the one combination while leaving the duplication in place invites
+    the next one, so the reading happens once and both checks consume it.
+    """
+
+    def __init__(self, path: Path, repo: Path) -> None:
+        self.path = path
+        self.repo = repo
+        self.text = read(path)
+        self.errors: list[str] = []
+        self.themes = has_theming(self.text)
+
+        self.base = self._read(BASE_ROOT_RE, "the base :root", outside_media=True)
+        m = MEDIA_RE.search(self.text)
+        self.media_name = m.group(1).lower() if m else None
+        self.media = (self._read(MEDIA_RE_BRACE,
+                                 f"the prefers-color-scheme:{self.media_name} block")
+                      if m else None)
+        self.themed = {
+            name: self._read(re.compile(THEME_RE.format(name=name)),
+                             f'the data-theme="{name}" block', quiet=True)
+            for name in ("light", "dark")
+        }
+
+    def _read(self, pattern, what: str, *, outside_media: bool = False,
+              quiet: bool = False) -> dict[str, str] | None:
+        try:
+            return tokens(block(self.text, pattern, outside_media=outside_media))
+        except BlockNotFound as exc:
+            # `quiet` covers the blocks a document may legitimately not have.
+            # Everything else is reported as a failure OF THIS CHECK, in those
+            # words, because an unreadable block used to surface as a page of
+            # invented colour mismatches.
+            if not quiet and self.themes:
+                self.errors.append(
+                    f"{rel(self.path, self.repo)}: this document themes, but {what} could "
+                    f"not be read ({exc}). This is a failure of this check, "
+                    "not a colour mismatch.")
+            return None
+
+    def overrides(self) -> dict[str, dict[str, str]]:
+        """The readable override blocks, labelled as a reader would name them."""
+        out = {}
+        if self.media is not None:
+            out[f"prefers-color-scheme:{self.media_name}"] = self.media
+        for name, toks in self.themed.items():
+            if toks is not None:
+                out[f'data-theme="{name}"'] = toks
+        return out
+
+
 # A value that names a colour. Used to tell a token that *should* have a theme
 # variant from one that legitimately does not.
 #
@@ -510,7 +573,8 @@ def is_colour(value: str) -> bool:
 THEME_INVARIANT: set[str] = set()
 
 
-def check_every_colour_themes(all_blocks: list[ThemeBlocks]) -> list[str]:
+def check_every_colour_themes(all_blocks: list[ThemeBlocks], repo: Path,
+                              theme_invariant: set[str]) -> list[str]:
     """A colour declared in the base :root must appear in every override block.
 
     This is the check that was missing, and its absence was not an oversight in
@@ -538,18 +602,18 @@ def check_every_colour_themes(all_blocks: list[ThemeBlocks]) -> list[str]:
             continue
 
         for key, value in sorted(blocks.base.items()):
-            if not is_colour(value) or key in THEME_INVARIANT:
+            if not is_colour(value) or key in theme_invariant:
                 continue
             absent = [where for where, toks in overrides.items() if key not in toks]
             if len(absent) == len(overrides):
                 out.append(
-                    f"{rel(path)}: {key} is a colour ({value}) declared only in "
+                    f"{rel(path, repo)}: {key} is a colour ({value}) declared only in "
                     "the base :root — it never themes, while its neighbours do. "
                     "Give it a variant in each override, or add it to "
                     "THEME_INVARIANT here and say why.")
             elif absent:
                 out.append(
-                    f"{rel(path)}: {key} themes in some blocks but is missing "
+                    f"{rel(path, repo)}: {key} themes in some blocks but is missing "
                     f"from {', '.join(absent)} — it will fall back to the base "
                     f"value ({value}) there while its neighbours change.")
     return out
@@ -594,64 +658,7 @@ def has_theming(text: str) -> bool:
         re.search(THEME_RE.format(name=n), text) for n in ("light", "dark"))
 
 
-class ThemeBlocks:
-    """Every theme block in one document, read once.
-
-    check_theme_parity and check_every_colour_themes each
-    re-derived the base :root, the media block and the two data-theme blocks,
-    with their own try/except wording around each. The mutual-deferral bug came
-    from exactly that shape - one function's error handling
-    silently depending on the other's, under a combination neither covered.
-    Fixing the one combination while leaving the duplication in place invites
-    the next one, so the reading happens once and both checks consume it.
-    """
-
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self.text = read(path)
-        self.errors: list[str] = []
-        self.themes = has_theming(self.text)
-
-        self.base = self._read(BASE_ROOT_RE, "the base :root", outside_media=True)
-        m = MEDIA_RE.search(self.text)
-        self.media_name = m.group(1).lower() if m else None
-        self.media = (self._read(MEDIA_RE_BRACE,
-                                 f"the prefers-color-scheme:{self.media_name} block")
-                      if m else None)
-        self.themed = {
-            name: self._read(re.compile(THEME_RE.format(name=name)),
-                             f'the data-theme="{name}" block', quiet=True)
-            for name in ("light", "dark")
-        }
-
-    def _read(self, pattern, what: str, *, outside_media: bool = False,
-              quiet: bool = False) -> dict[str, str] | None:
-        try:
-            return tokens(block(self.text, pattern, outside_media=outside_media))
-        except BlockNotFound as exc:
-            # `quiet` covers the blocks a document may legitimately not have.
-            # Everything else is reported as a failure OF THIS CHECK, in those
-            # words, because an unreadable block used to surface as a page of
-            # invented colour mismatches.
-            if not quiet and self.themes:
-                self.errors.append(
-                    f"{rel(self.path)}: this document themes, but {what} could "
-                    f"not be read ({exc}). This is a failure of this check, "
-                    "not a colour mismatch.")
-            return None
-
-    def overrides(self) -> dict[str, dict[str, str]]:
-        """The readable override blocks, labelled as a reader would name them."""
-        out = {}
-        if self.media is not None:
-            out[f"prefers-color-scheme:{self.media_name}"] = self.media
-        for name, toks in self.themed.items():
-            if toks is not None:
-                out[f'data-theme="{name}"'] = toks
-        return out
-
-
-def check_theme_parity(all_blocks: list[ThemeBlocks]) -> list[str]:
+def check_theme_parity(all_blocks: list[ThemeBlocks], repo: Path) -> list[str]:
     """The two ways of reaching a theme must agree.
 
     A viewer's OS preference arrives as `prefers-color-scheme`; their explicit
@@ -672,7 +679,7 @@ def check_theme_parity(all_blocks: list[ThemeBlocks]) -> list[str]:
             continue  # no theme toggle; nothing can disagree
 
         if blocks.media_name is None:
-            out.append(f"{rel(path)}: has data-theme blocks but no "
+            out.append(f"{rel(path, repo)}: has data-theme blocks but no "
                        "prefers-color-scheme query; the OS preference is ignored")
             continue
         media_name = blocks.media_name
@@ -687,7 +694,7 @@ def check_theme_parity(all_blocks: list[ThemeBlocks]) -> list[str]:
             a, b = blocks.media.get(key), blocks.themed[media_name].get(key)
             if a != b:
                 out.append(
-                    f"{rel(path)}: {key} is {a!r} under "
+                    f"{rel(path, repo)}: {key} is {a!r} under "
                     f"prefers-color-scheme:{media_name} but {b!r} under "
                     f'data-theme="{media_name}" — the toggle and the OS '
                     "preference would disagree")
@@ -699,7 +706,7 @@ def check_theme_parity(all_blocks: list[ThemeBlocks]) -> list[str]:
             got = blocks.base.get(key)
             if got != want:
                 out.append(
-                    f"{rel(path)}: {key} is {got!r} in the base :root but "
+                    f"{rel(path, repo)}: {key} is {got!r} in the base :root but "
                     f'{want!r} under data-theme="{other}" — these are the same '
                     "theme and must match")
     return out
@@ -730,7 +737,7 @@ YAML_COMMENT_RE = re.compile(r"^\s*#.*$", re.M)
 BOARD = "docs/big-board.html"
 
 
-def check_board_harness_count() -> list[str]:
+def check_board_harness_count(repo: Path) -> list[str]:
     """The board's headline harness count must match what CI actually runs.
 
     The board is a static snapshot and says so, but "how many harnesses run in
@@ -743,8 +750,8 @@ def check_board_harness_count() -> list[str]:
     This does not make the board live. It pins the one number that can be
     derived, so the document cannot claim more coverage than exists.
     """
-    board = REPO / BOARD
-    workflow = REPO / ".github/workflows/checks.yml"
+    board = repo / BOARD
+    workflow = repo / ".github/workflows/checks.yml"
     if not board.exists() or not workflow.exists():
         return []
 
@@ -781,36 +788,30 @@ def check_board_harness_count() -> list[str]:
 
 def main(docs_root: Path | None = None, repo_root: Path | None = None,
          theme_invariant: set[str] | None = None) -> int:
-    """Run every check. Roots are arguments so a caller need not reach in.
+    """Run every check against the given roots.
 
-    harness_test.py used to assign artifact_test.DOCS and .REPO directly and
-    restore them in a finally. Correct for a sequential script and silently
-    wrong under any parallel runner - two tests would fight over one module's
-    globals. Passing them removes the shared mutable state rather than
-    documenting it.
+    NO GLOBAL MUTATION. An earlier version assigned DOCS, REPO and
+    THEME_INVARIANT onto the module and restored them in a finally, with a
+    comment claiming that removed the shared mutable state - it did not. It
+    moved the race from the caller into this function, where the window
+    between saving and restoring is just as open to a second concurrent call.
+    Review caught the overclaim, which was mine and in a comment about
+    robustness.
+
+    The module-level DOCS and REPO are defaults for a direct run and nothing
+    reads them after this line.
     """
-    global DOCS, REPO, THEME_INVARIANT
-    saved = (DOCS, REPO, THEME_INVARIANT)
-    if docs_root is not None:
-        DOCS = docs_root
-    if repo_root is not None:
-        REPO = repo_root
-    if theme_invariant is not None:
-        THEME_INVARIANT = theme_invariant
-    try:
-        return _run()
-    finally:
-        DOCS, REPO, THEME_INVARIANT = saved
+    docs = docs_root if docs_root is not None else DOCS
+    repo = repo_root if repo_root is not None else REPO
+    invariant = theme_invariant if theme_invariant is not None else THEME_INVARIANT
 
-
-def _run() -> int:
-    if not DOCS.is_dir():
+    if not docs.is_dir():
         print("docs artifact test: FAILED")
         print("  docs/ is missing; this check cannot run, which is a failure "
               "rather than a pass.")
         return 1
 
-    files = html_files()
+    files = html_files(docs)
     if not files:
         print("docs artifact test: FAILED")
         print("  no HTML under docs/. If the documents were removed on purpose, "
@@ -820,19 +821,19 @@ def _run() -> int:
 
     # Read once, here. Both theme checks used to build their own ThemeBlocks,
     # and the errors were emitted by whichever of them happened to run - a
-    # coupling held by a comment, in a file whose second half is a record of
-    # comment-held couplings failing. This file has already had one of those; leaving the
-    # shape in place invites the next. main() now owns the read and the
-    # reporting, so removing or reordering either check cannot make an
-    # unreadable block go quiet.
-    all_blocks = [ThemeBlocks(path) for path in files]
+    # coupling held by a comment. main() owns the read and the reporting, so
+    # removing or reordering either check cannot make an unreadable block go
+    # quiet.
+    all_blocks = [ThemeBlocks(path, repo) for path in files]
     block_errors = [err for blocks in all_blocks for err in blocks.errors]
 
-    failures = (check_layout() + check_parses() + check_shared_widget()
+    failures = (check_layout()
+                + check_parses(docs, repo)
+                + check_shared_widget(docs, repo)
                 + block_errors
-                + check_theme_parity(all_blocks)
-                + check_every_colour_themes(all_blocks)
-                + check_board_harness_count())
+                + check_theme_parity(all_blocks, repo)
+                + check_every_colour_themes(all_blocks, repo, invariant)
+                + check_board_harness_count(repo))
 
     if failures:
         print("docs artifact test: FAILED")

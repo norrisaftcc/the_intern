@@ -317,7 +317,8 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
 
 
 def run_against(files: dict[str, str], workflow: str | None = None,
-                theme_invariant: set[str] | None = None) -> tuple[int, str]:
+                theme_invariant: set[str] | None = None,
+                capture: bool = True) -> tuple[int, str]:
     """Point the harness at a scratch docs/ and capture what it reports.
 
     `workflow` writes a .github/workflows/checks.yml, so the board-count check
@@ -339,9 +340,16 @@ def run_against(files: dict[str, str], workflow: str | None = None,
         # Roots passed as arguments rather than assigned onto the module.
         # The previous version swapped A.DOCS and A.REPO and restored them in a
         # finally - correct here, and silently wrong under any parallel runner.
+        # `capture` exists because contextlib.redirect_stdout swaps sys.stdout
+        # PROCESS-WIDE. It is the right primitive for a sequential run and the
+        # wrong one inside threads, where two redirects race and output leaks -
+        # found by check_parallel_safe, which was written to prove main() is
+        # thread-safe and instead proved this capture was not. The threaded
+        # caller sets capture=False and redirects once around the whole block.
         sink = io.StringIO()
         try:
-            with contextlib.redirect_stdout(sink):
+            with contextlib.redirect_stdout(sink) if capture \
+                    else contextlib.nullcontext():
                 code = A.main(docs_root=docs, repo_root=tmp,
                               theme_invariant=theme_invariant)
         except Exception as exc:  # noqa: BLE001 - a Ctrl-C is not a finding
@@ -352,6 +360,80 @@ def run_against(files: dict[str, str], workflow: str | None = None,
         return code, sink.getvalue() + "\n".join(buf)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def check_colour_list_is_complete() -> list[str]:
+    """The named-colour set must stay the whole set.
+
+    A partial list was the previous version and it was the worst option: it
+    looked exhaustive while silently skipping whatever nobody thought to add.
+    Pinned by count so an accidental edit trips this rather than drifting back
+    into that shape.
+    """
+    n = len(A.CSS_NAMED_COLOURS)
+    out = []
+    if n != 148:
+        out.append(f"CSS_NAMED_COLOURS has {n} entries, not 148. If a keyword "
+                   "was added to the CSS spec, update the count with it; if one "
+                   "was dropped by accident, this is the check that noticed.")
+    for name in ("rebeccapurple", "papayawhip", "transparent"):
+        if not A.is_colour(name):
+            out.append(f"{name!r} is a colour and is_colour() says otherwise")
+    return out
+
+
+def check_exemption_is_exact() -> list[str]:
+    """Only an exact key may be exempted.
+
+    Nothing today matches by prefix or case - `key in theme_invariant` is a set
+    membership test. This pins that, so a refactor to a substring or
+    case-folded comparison cannot quietly widen every exemption.
+    """
+    files = {"a.html": doc(GOOD_CSS.replace(
+        "--ink: #E7E9ED;\n    --sans",
+        "--ink: #E7E9ED;\n    --brand-2: #A855F7;\n    --sans"))}
+    code, output = run_against(files, theme_invariant={"--brand"})
+    if code == 0:
+        return ["exempting '--brand' also suppressed '--brand-2'; the "
+                "exemption is matching by prefix rather than exactly"]
+    code, output = run_against(files, theme_invariant={"--BRAND-2"})
+    if code == 0:
+        return ["exempting '--BRAND-2' suppressed '--brand-2'; the exemption "
+                "is case-folding when it should not"]
+    return []
+
+
+def check_parallel_safe() -> list[str]:
+    """main() must not fight itself across threads.
+
+    The previous version assigned the roots onto the module and restored them
+    in a finally, with a comment claiming that removed the shared state. It did
+    not - it moved the race inside the function. Now the roots are arguments,
+    so two concurrent runs over different trees cannot see each other's. Proven
+    rather than asserted, because the claim was wrong once already.
+    """
+    import threading
+    good = {"a.html": doc(GOOD_CSS)}
+    bad = {"a.html": doc(GOOD_CSS, body="<div><p>x</p>")}
+    results: dict[str, list] = {"good": [], "bad": []}
+
+    def worker(kind, files, expect):
+        for _ in range(6):
+            code, _out = run_against(files, capture=False)
+            results[kind].append(code == expect)
+
+    # One redirect around the whole parallel section, not one per call.
+    with contextlib.redirect_stdout(io.StringIO()):
+        threads = [threading.Thread(target=worker, args=("good", good, 0)),
+                   threading.Thread(target=worker, args=("bad", bad, 1))]
+        for th in threads:
+            th.start()
+        for th in threads:
+            th.join()
+    if not all(results["good"]) or not all(results["bad"]):
+        return ["concurrent runs over different trees interfered: "
+                f"good={results['good']} bad={results['bad']}"]
+    return []
 
 
 def check_theme_invariant_exemption() -> list[str]:
@@ -397,7 +479,9 @@ def check_board_cases() -> list[str]:
 
 
 def main() -> int:
-    failures = check_theme_invariant_exemption() + check_board_cases()
+    failures = (check_theme_invariant_exemption() + check_board_cases()
+                + check_colour_list_is_complete() + check_exemption_is_exact()
+                + check_parallel_safe())
     for name, files, expect_failure, needle in CASES:
         code, output = run_against(files)
         failed = code != 0
