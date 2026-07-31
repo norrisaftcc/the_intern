@@ -76,7 +76,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          # Full history. `git diff BASE...HEAD` below needs the merge base
+          # present locally, and a shallow clone does not have it.
           fetch-depth: 0
+
+      # First, and deliberately. The key was previously checked inside
+      # "Request the review", after a full-history checkout, a diff, a
+      # truncation pass and an iconv pass had all already run. A repository
+      # with no key configured paid for all of that before being told the one
+      # thing that was wrong with it. Cheapest possible failure, first.
+      - name: The key is configured
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAUDE_API_KEY:-}" ]; then
+            echo "::error::CLAUDE_API_KEY is not set. No review was requested."
+            exit 1
+          fi
+          echo "Key is present. Its validity is not knowable until the call."
 
       - name: Assemble the review prompt
         env:
@@ -106,14 +124,27 @@ jobs:
           jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH" > pr_title.txt
           jq -r '.pull_request.body  // ""' "$GITHUB_EVENT_PATH" > pr_body.txt
 
-          # Two walks of the same range. Deriving the file list from the diff
-          # already computed means parsing `+++ b/` lines, which is wrong for
-          # renames, deletions and binary hunks - a fragile parser to save one
-          # cheap traversal on a diff already capped at 200KB. Kept as two
-          # calls on purpose, noted so the next reader does not have to decide
-          # again whether it was an oversight.
-          git diff --name-only "$BASE_SHA".."$HEAD_SHA" > changed_files.txt
-          git diff "$BASE_SHA".."$HEAD_SHA" > full_diff.txt
+          # Three dots, not two. `A..B` diffs the two tips, so once the base
+          # branch advances past the branch point, everything merged into it
+          # and absent from the head shows up as the PR's work - in reverse.
+          # Reproduced on a scratch repository: with one commit on the branch
+          # and one unrelated commit on main,
+          #
+          #   git diff --name-status BASE..HEAD   ->  A feature.txt
+          #                                           D unrelated.txt
+          #   git diff --name-status BASE...HEAD  ->  A feature.txt
+          #
+          # The two-dot form asks the model to review a deletion the pull
+          # request never made. `A...B` diffs from the merge base, which is
+          # what a reviewer means by "what this branch changed". Needs the
+          # merge base present locally, hence `fetch-depth: 0` above.
+          #
+          # Two walks of the same range, kept. Deriving the file list from the
+          # computed diff means parsing `+++ b/` lines, wrong for renames,
+          # deletions and binary hunks - a fragile parser to save one cheap
+          # traversal of a diff already capped at 200KB.
+          git diff --name-only "$BASE_SHA"..."$HEAD_SHA" > changed_files.txt
+          git diff "$BASE_SHA"..."$HEAD_SHA" > full_diff.txt
 
           if [ "$(wc -c < full_diff.txt)" -gt "$MAX_DIFF_BYTES" ]; then
             # `head -c` cuts on bytes, not codepoints, so a diff containing
@@ -214,6 +245,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Re-checked, cheaply. The first step already failed the job if this
+          # were empty; this guards against the env block here being edited
+          # later without the guard above being noticed.
           if [ -z "${CLAUDE_API_KEY:-}" ]; then
             echo "::error::CLAUDE_API_KEY is not set. No review was requested."
             exit 1

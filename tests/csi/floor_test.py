@@ -328,6 +328,15 @@ def unanchored_branches(pattern: str) -> list[str]:
     `hundred` and `shredded` all fail `\\bRED` because the character before
     the match is a word character.
 
+    What that leaves open, stated rather than assumed closed: a leading `\\b`
+    stops a branch matching as a *suffix* - `\\bed` cannot match `red`, because
+    the character before `ed` there is a word character. It does not stop a
+    branch matching as a *prefix*: `\\bed` still matches `edit` and
+    `education`. That residual is the price of supporting stems, and it is the
+    right way round, because a stem is written to match a prefix on purpose.
+    A branch meant as a whole word should carry its own trailing `\\b`; this
+    check cannot tell which was intended and does not guess.
+
     This exists because ROSTER.md documents exactly this defect in the
     `wrong-branch` case, and the corpus still held forty more instances of it.
     A rule stated in prose is the kind this repository keeps failing.
