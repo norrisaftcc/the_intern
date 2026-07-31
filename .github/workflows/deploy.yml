@@ -109,9 +109,9 @@ jobs:
   # someone deletes the job, which is one of the two outcomes this stub is
   # waiting on.
   deploy:
-    needs: test
+    needs: test  # inert while `if: false`; re-check this at revival (step 4)
     runs-on: ubuntu-latest
-    if: false  # was: github.ref == 'refs/heads/main'
+    if: false  # was: github.ref == 'refs/heads/main'  — see the block above and #39
 
     steps:
     - uses: actions/checkout@v3

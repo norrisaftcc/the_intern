@@ -1,0 +1,1064 @@
+<title>SHODANN — Calibration Brief</title>
+
+<style>
+  :root {
+    /* The clearance register is the palette. Nine bands, not one neon pop. */
+    --infrared:     #8E2748;
+    --red:          #C0392B;
+    --orange:       #CE7A2A;
+    --yellow:       #C6A521;
+    --green:        #3E9E5E;
+    --blue:         #2E77B8;
+    --indigo:       #4B54AE;
+    --violet:       #7B4BA8;
+    --ultraviolet:  #A855F7;
+
+    /* Neutrals biased toward the top of the ladder, not inherited grey. */
+    --ground:   #F1F0F5;
+    --surface:  #FFFFFF;
+    --raised:   #E7E5EE;
+    --line:     #CFCBDA;
+    --ink:      #191622;
+    --ink-soft: #56506B;
+    --ink-mute: #837C99;
+    --accent:   #6A3F96;
+    --accent-soft: rgba(123, 75, 168, 0.10);
+
+    --font-display: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono",
+                    "Roboto Mono", Menlo, Consolas, monospace;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+    --measure: 66ch;
+    --radius: 3px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:   #15121C;
+      --surface:  #1D1927;
+      --raised:   #262032;
+      --line:     #3A3348;
+      --ink:      #EAE6F2;
+      --ink-soft: #B0A8C4;
+      --ink-mute: #7E7595;
+      --accent:   #B98BE6;
+      --accent-soft: rgba(168, 85, 247, 0.14);
+      --infrared: #C0446E;
+      --red:      #E05B4C;
+      --orange:   #E8963F;
+      --yellow:   #DFC13A;
+      --green:    #55BF79;
+      --blue:     #4C97D8;
+      --indigo:   #6E77CE;
+      --violet:   #A472D0;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #15121C;
+    --surface:  #1D1927;
+    --raised:   #262032;
+    --line:     #3A3348;
+    --ink:      #EAE6F2;
+    --ink-soft: #B0A8C4;
+    --ink-mute: #7E7595;
+    --accent:   #B98BE6;
+    --accent-soft: rgba(168, 85, 247, 0.14);
+    --infrared: #C0446E;
+    --red:      #E05B4C;
+    --orange:   #E8963F;
+    --yellow:   #DFC13A;
+    --green:    #55BF79;
+    --blue:     #4C97D8;
+    --indigo:   #6E77CE;
+    --violet:   #A472D0;
+  }
+
+  :root[data-theme="light"] {
+    --ground:   #F1F0F5;
+    --surface:  #FFFFFF;
+    --raised:   #E7E5EE;
+    --line:     #CFCBDA;
+    --ink:      #191622;
+    --ink-soft: #56506B;
+    --ink-mute: #837C99;
+    --accent:   #6A3F96;
+    --accent-soft: rgba(123, 75, 168, 0.10);
+    --infrared: #8E2748;
+    --red:      #C0392B;
+    --orange:   #CE7A2A;
+    --yellow:   #C6A521;
+    --green:    #3E9E5E;
+    --blue:     #2E77B8;
+    --indigo:   #4B54AE;
+    --violet:   #7B4BA8;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 4rem) clamp(1.1rem, 4vw, 2.5rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.75rem, 6vw, 4.5rem);
+  }
+
+  /* ---- shared type ---- */
+  .eyebrow {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0;
+  }
+
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 7vw, 3.9rem);
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 2.6vw, 1.5rem);
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    font-weight: 600;
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+
+  .lede {
+    font-size: clamp(1.05rem, 2vw, 1.22rem);
+    line-height: 1.5;
+    color: var(--ink-soft);
+    max-width: 54ch;
+  }
+
+  strong { font-weight: 640; color: var(--ink); }
+  em { font-style: italic; }
+
+  code, .mono {
+    font-family: var(--font-display);
+    font-size: 0.87em;
+  }
+
+  code {
+    background: var(--accent-soft);
+    padding: 0.1em 0.36em;
+    border-radius: var(--radius);
+    color: var(--ink);
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--radius);
+  }
+
+  /* ---- masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: 1.4rem; }
+
+  .acronym {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.4rem;
+    font-family: var(--font-display);
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .acronym b { color: var(--accent); font-weight: 700; }
+
+  /* The ladder, as an instrument strip. */
+  .spectrum {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    height: 6px;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .spectrum span { display: block; }
+
+  .band-key {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 0.25rem;
+    font-family: var(--font-display);
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-mute);
+    text-align: center;
+  }
+  .band-key span { overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---- the thesis chart ---- */
+  .thesis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 1rem;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .reading {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.7rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .reading small {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    display: block;
+  }
+
+  .verdict {
+    font-family: var(--font-display);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.5rem;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+  .verdict.celebrates { background: var(--green); color: #08160D; }
+  .verdict.quiet { background: var(--raised); color: var(--ink-mute); border: 1px solid var(--line); }
+
+  .panel svg { width: 100%; height: auto; display: block; }
+  .panel figcaption { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.45; }
+
+  .pull {
+    font-family: var(--font-display);
+    font-size: clamp(1.05rem, 3vw, 1.45rem);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    border-left: 3px solid var(--accent);
+    padding: 0.15rem 0 0.15rem 1.15rem;
+    max-width: 44ch;
+    color: var(--ink);
+  }
+  .pull cite {
+    display: block;
+    font-family: var(--font-body);
+    font-style: normal;
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    letter-spacing: 0.02em;
+    margin-top: 0.6rem;
+  }
+
+  /* ---- posture ladder ---- */
+  .postures { display: flex; flex-direction: column; gap: 0.5rem; }
+  .posture {
+    display: grid;
+    grid-template-columns: 5px minmax(7rem, 8rem) 1fr;
+    gap: 0 1rem;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .posture .stripe { background: var(--line); align-self: stretch; }
+  .posture .who {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 1rem 0 1rem 0;
+  }
+  .posture .what { padding: 1rem 1.1rem 1rem 0; font-size: 0.94rem; }
+  .posture .what b {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  /* ---- tables ---- */
+  .scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.87rem; min-width: 40rem; }
+  thead th {
+    font-family: var(--font-display);
+    font-size: 0.63rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    text-align: left;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--raised);
+    white-space: nowrap;
+  }
+  tbody td { padding: 0.62rem 0.9rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.name { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
+  td.role { color: var(--ink-soft); min-width: 20rem; }
+
+  .chip {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.44rem;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .chip.live { border-color: var(--green); color: var(--green); }
+  .chip.shared { border-color: var(--violet); color: var(--violet); }
+  .chip.stale { border-color: var(--ink-mute); color: var(--ink-mute); opacity: 0.85; }
+  .chip.queued { border-color: var(--orange); color: var(--orange); }
+
+  /* ---- two places diagram ---- */
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .node {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .node.base { border-color: var(--violet); border-width: 2px; }
+  .node .hash {
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    color: var(--ink-mute);
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .node h3 { font-size: 0.85rem; }
+  .node p { font-size: 0.86rem; color: var(--ink-soft); }
+
+  .open-question {
+    background: var(--accent-soft);
+    border: 1px solid var(--violet);
+    border-radius: var(--radius);
+    padding: 1.15rem 1.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .open-question .eyebrow { color: var(--accent); }
+
+  .never {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .never li {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    padding: 0.3rem 0.6rem;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    text-decoration: line-through;
+    text-decoration-color: var(--red);
+    text-decoration-thickness: 1px;
+  }
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding-top: 1.2rem;
+    font-size: 0.8rem;
+    color: var(--ink-mute);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  hr.rule { border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+  /* ---- tabs ---- */
+  .tabs {
+    display: flex;
+    gap: 0.15rem;
+    border-bottom: 1px solid var(--line);
+    margin-top: 0.4rem;
+  }
+  .tabs button {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--ink-soft); }
+  .tabs button[aria-selected="true"] {
+    color: var(--ink);
+    border-bottom-color: var(--accent);
+  }
+  .tabs button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .tabpanel { display: flex; flex-direction: column; gap: clamp(2.75rem, 6vw, 4.5rem); }
+  .tabpanel[hidden] { display: none; }
+
+  /* ---- pick list ---- */
+  .decision {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .decision > header {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .decision > header h3 { font-size: 1rem; }
+  .decision > header p { font-size: 0.9rem; color: var(--ink-soft); max-width: 62ch; }
+
+  .options { display: flex; flex-direction: column; }
+  .option {
+    display: grid;
+    grid-template-columns: 2.1rem 1fr;
+    gap: 0 0.8rem;
+    padding: 0.95rem 1.2rem;
+    border-bottom: 1px solid var(--line);
+    align-items: start;
+  }
+  .option:last-child { border-bottom: 0; }
+  .option .key {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-align: center;
+    padding: 0.1rem 0;
+    line-height: 1.4;
+  }
+  .option.pick .key { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+  .option h4 {
+    font-family: var(--font-display);
+    font-size: 0.86rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .option p { font-size: 0.87rem; color: var(--ink-soft); max-width: 60ch; }
+  .cost {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.12rem 0.42rem;
+    border-radius: 99px;
+    border: 1px solid var(--line);
+    color: var(--ink-mute);
+    white-space: nowrap;
+  }
+  .cost.small { border-color: var(--green); color: var(--green); }
+  .cost.medium { border-color: var(--orange); color: var(--orange); }
+  .cost.none { border-color: var(--blue); color: var(--blue); }
+
+  .ledger { display: flex; flex-direction: column; gap: 0.4rem; }
+  .ledger-row {
+    display: grid;
+    grid-template-columns: 3.6rem 1fr auto;
+    gap: 0.8rem;
+    align-items: baseline;
+    padding: 0.6rem 0.9rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-size: 0.88rem;
+  }
+  .ledger-row .num {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+  }
+  .ledger-row.done { opacity: 0.62; }
+  .ledger-row.done .what { text-decoration: line-through; text-decoration-color: var(--ink-mute); }
+</style>
+
+<div class="wrap">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="masthead">
+    <p class="eyebrow">Calibration brief · spike · 2026-07-31</p>
+    <h1>SHODANN</h1>
+
+    <ul class="acronym">
+      <li><b>S</b>imple</li>
+      <li><b>H</b>euristically</li>
+      <li><b>O</b>perated</li>
+      <li><b>D</b>ynamically</li>
+      <li><b>A</b>dversarial</li>
+      <li><b>N</b>eural</li>
+      <li><b>N</b>etwork</li>
+    </ul>
+
+    <div class="spectrum" role="img" aria-label="The clearance register, from INFRARED to ULTRAVIOLET">
+      <span style="background: var(--infrared)"></span>
+      <span style="background: var(--red)"></span>
+      <span style="background: var(--orange)"></span>
+      <span style="background: var(--yellow)"></span>
+      <span style="background: var(--green)"></span>
+      <span style="background: var(--blue)"></span>
+      <span style="background: var(--indigo)"></span>
+      <span style="background: var(--violet)"></span>
+      <span style="background: var(--ultraviolet)"></span>
+    </div>
+
+    <div class="band-key" aria-hidden="true">
+      <span>IR</span><span>RED</span><span>ORG</span><span>YEL</span><span>GRN</span>
+      <span>BLU</span><span>IND</span><span>VIO</span><span>UV</span>
+    </div>
+
+    <p class="lede">
+      The benevolent overseer of an educational program, reviewing citizens' work in the voice of
+      The Algorithm. The name inverts SHODAN from <em>System Shock</em>: that one claimed
+      benevolence and was hostile. This one is benevolent and <strong>performs</strong> menace.
+      The performance is the joke, and it is never dropped.
+    </p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-brief" aria-controls="panel-brief" aria-selected="true">Brief</button>
+    <button role="tab" id="tab-work" aria-controls="panel-work" aria-selected="false">Open work</button>
+  </div>
+
+  <div class="tabpanel" id="panel-brief" role="tabpanel" aria-labelledby="tab-brief">
+
+  <hr class="rule">
+
+  <!-- ============ THE THESIS ============ -->
+  <section>
+    <p class="eyebrow">What she actually measures</p>
+    <h2>Movement, never position</h2>
+
+    <p>
+      This is the one idea everything else follows from, and it is not a stylistic preference.
+      It is an instruction in <code>src/shodann/clearance.py</code>, in the band given to the
+      newest citizens:
+    </p>
+
+    <blockquote class="pull">
+      “…cannot yet calibrate absolute position, so speak only about movement.”
+      <cite>src/shodann/clearance.py — the RED band instruction</cite>
+    </blockquote>
+
+    <p>
+      A verdict handed to someone who has no frame of reference measures the ladder, not the
+      climber. So SHODANN reads the <strong>delta</strong> between two states of the same work —
+      never the absolute figure, and never one citizen against another.
+    </p>
+
+    <div class="thesis">
+      <figure class="panel">
+        <div class="panel-head">
+          <div class="reading">4 <span aria-hidden="true">→</span> 19%<small>Citizen at RED</small></div>
+          <span class="verdict celebrates">Celebrated</span>
+        </div>
+        <svg viewBox="0 0 240 96" role="img" aria-label="A steep climb from 4 percent to 19 percent">
+          <line x1="0" y1="88" x2="240" y2="88" stroke="var(--line)" stroke-width="1"/>
+          <line x1="0" y1="48" x2="240" y2="48" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>
+          <path d="M28 82 L212 30" stroke="var(--green)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="28" cy="82" r="4" fill="var(--surface)" stroke="var(--green)" stroke-width="2"/>
+          <circle cx="212" cy="30" r="5" fill="var(--green)"/>
+        </svg>
+        <figcaption>
+          A low number and the steepest climb on record. The Algorithm measures the climb,
+          not the altitude.
+        </figcaption>
+      </figure>
+
+      <figure class="panel">
+        <div class="panel-head">
+          <div class="reading">91 <span aria-hidden="true">→</span> 91%<small>Citizen at GREEN</small></div>
+          <span class="verdict quiet">No movement</span>
+        </div>
+        <svg viewBox="0 0 240 96" role="img" aria-label="A flat line holding at 91 percent">
+          <line x1="0" y1="88" x2="240" y2="88" stroke="var(--line)" stroke-width="1"/>
+          <line x1="0" y1="48" x2="240" y2="48" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>
+          <path d="M28 22 L212 22" stroke="var(--ink-mute)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <circle cx="28" cy="22" r="4" fill="var(--surface)" stroke="var(--ink-mute)" stroke-width="2"/>
+          <circle cx="212" cy="22" r="5" fill="var(--ink-mute)"/>
+        </svg>
+        <figcaption>
+          A far better absolute number and nothing to report. A rate of zero is a rate,
+          and she will say so without calling the work bad.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ THE LADDER ============ -->
+  <section>
+    <p class="eyebrow">The register</p>
+    <h2>The ladder changes posture twice, not once</h2>
+    <p>
+      Most feedback systems have one switch: beginner or expert. This one has two, and the
+      middle rung is the one people forget.
+    </p>
+
+    <div class="postures">
+      <div class="posture">
+        <span class="stripe" style="background: linear-gradient(var(--infrared), var(--yellow))"></span>
+        <span class="who">Infrared → Yellow</span>
+        <span class="what">
+          <b style="color: var(--orange)">Teaches</b>
+          One concept at a time, with an example drawn from the citizen's own submission.
+          Every introduced term gets defined. No comparison to anyone else.
+        </span>
+      </div>
+      <div class="posture">
+        <span class="stripe" style="background: var(--green)"></span>
+        <span class="who">Green</span>
+        <span class="what">
+          <b style="color: var(--green)">Mentors</b>
+          Names the <em>consequence</em> rather than the fix — “this module's complexity is now
+          carried by one person,” not “split this function.” The next step may be delegation
+          or documentation rather than code.
+        </span>
+      </div>
+      <div class="posture">
+        <span class="stripe" style="background: linear-gradient(var(--blue), var(--ultraviolet))"></span>
+        <span class="who">Blue and above</span>
+        <span class="what">
+          <b style="color: var(--violet)">Reports</b>
+          They may have written the standard being applied to them. Report and stop. The
+          encouragement scaffolding drops; the vocabulary rules stay, because those are the
+          persona rather than a beginner accommodation.
+          <code>Recommended Iteration</code> becomes <code>Observations</code>.
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MODES ============ -->
+  <section>
+    <p class="eyebrow">Two modes</p>
+    <h2>RAGE STATE is never mean. It is <em>concerningly helpful</em>.</h2>
+    <p>
+      The security pass shifts vocabulary rather than temperature. The comedy is an AI so
+      helpful about your vulnerabilities that it becomes slightly unnerving.
+    </p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th scope="col">Normal</th><th scope="col">RAGE STATE</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>The Algorithm suggests</td><td>The Algorithm has noticed</td></tr>
+          <tr><td>Growth opportunity</td><td>Security observation</td></tr>
+          <tr><td>Consider trying</td><td>The Algorithm strongly recommends</td></tr>
+          <tr><td>Your code</td><td>This code</td></tr>
+          <tr><td>Noted</td><td>Logged for your protection</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:0.4rem">And a hard list of things she never says, at any band:</p>
+    <ul class="never">
+      <li>This is wrong</li>
+      <li>This is bad code</li>
+      <li>You failed</li>
+      <li>Unfortunately…</li>
+      <li>Many students struggle with…</li>
+      <li>As an AI, I…</li>
+      <li>I'm just a language model</li>
+    </ul>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ TWO PLACES ============ -->
+  <section>
+    <p class="eyebrow">The thing you wanted untangled</p>
+    <h2>She lives in two repositories on purpose</h2>
+    <p>
+      One definition was written, then copied into both repositories byte-for-byte. Each copy is
+      expected to be adjusted locally. The copies are <strong>meant</strong> to diverge — neither
+      is the other's upstream after that point.
+    </p>
+
+    <div class="split">
+      <div class="node base">
+        <span class="chip shared">Shared base · 2026-07-31.1</span>
+        <h3>The definition</h3>
+        <p>An agent file and a voice skill. Repository-neutral: no roster, no sibling agent, no local path.</p>
+        <p class="hash">c60a3a4d…fb36a3d4 &nbsp;agent<br>282c5ae6…a090e3e3 &nbsp;skill</p>
+      </div>
+      <div class="node">
+        <span class="chip live">the_intern</span>
+        <h3>Copy A</h3>
+        <p>
+          Joins a six-persona CSI roster and is measured by its floor harness. Its local facts —
+          the boundary against Kevin, the roster's conventions — live in that repo's
+          <code>ROSTER.md</code>, not in the shared file.
+        </p>
+      </div>
+      <div class="node">
+        <span class="chip live">algorithm-shodann</span>
+        <h3>Copy B</h3>
+        <p>
+          Joins the tool that already implements her — the validator, the clearance register,
+          the voice guide she was reconstructed <em>from</em>. Here she is the seat for the
+          thing the code already does.
+        </p>
+      </div>
+    </div>
+
+    <div class="open-question">
+      <p class="eyebrow">Open — not decided here</p>
+      <p style="max-width:60ch">
+        A base version stamp gives divergence a reference point, and a check now fails any file
+        claiming to be a shared base without one. What that <strong>cannot</strong> do is compare
+        bytes across two repositories — CI inside one repository never will. So “are these still
+        the same?” is currently answered by hand, and whether that is good enough is the
+        conversation still pending.
+      </p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ============ THE FULL CHART ============ -->
+  <section>
+    <p class="eyebrow">Every agent, both repositories</p>
+    <h2>Who does what</h2>
+    <p>
+      Twenty agents and five skills across two repositories. <span class="chip shared">Shared</span>
+      marks the two files that exist identically in both.
+      <span class="chip stale">Inherited</span> marks agents copied from a course-build repository
+      that still carry assumptions which do not hold — they are documented as not-to-be-run rather
+      than quietly left in place.
+    </p>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Agent</th>
+            <th scope="col">Repository</th>
+            <th scope="col">What it does</th>
+            <th scope="col">State</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="name">shodann</td><td class="mono">both</td><td class="role">Grades movement, not position. Clearance-aware review; RAGE STATE for security.</td><td><span class="chip shared">Shared</span></td></tr>
+          <tr><td class="name">shodann-voice</td><td class="mono">both</td><td class="role">Skill. The register without the seat: modes, ladder, 400-word cap, never-says.</td><td><span class="chip shared">Shared</span></td></tr>
+
+          <tr><td class="name">kai</td><td class="mono">the_intern</td><td class="role">Cyberpunk detective intern. Python and web debugging, guided by questioning. Keeps live case files with a caller present.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">kevin</td><td class="mono">the_intern</td><td class="role">The roster's control. Reconstructs what already happened from evidence. Never judges quality, never repairs what he investigates. RED clearance.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">liza</td><td class="mono">the_intern</td><td class="role">Visual analysis. UI, render behaviour, diagrams, schema design. Explains structure frame by frame.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">wyatt</td><td class="mono">the_intern</td><td class="role">Git and GitHub. Branch and merge recovery, diffs, walking a first-time contributor through a pull request.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">vita</td><td class="mono">the_intern</td><td class="role">Introductory Python tutor. Guides by question and scaffold. Holds no Edit or Write tool, so it cannot write a student's code.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">vi</td><td class="mono">the_intern</td><td class="role">Songwriting and lyrics, genre and scene research. Runs on Pi.ai; the agent file says so.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">csi-fork-protocol</td><td class="mono">the_intern</td><td class="role">Skill. Instantiates a persona at alpha, beta, gamma or delta capability, and governs adding one.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">csi-persona-conformance</td><td class="mono">the_intern</td><td class="role">Skill. Tests a persona against the frozen baseline record, and A/Bs a rewritten voice against its predecessor.</td><td><span class="chip live">Live</span></td></tr>
+
+          <tr><td class="name">citizen-zero</td><td class="mono">algorithm-shodann</td><td class="role">The reader. Takes a review as a beginner would, with no repository access, and reports what they understood. Testimony, not critique.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">oracle-warden</td><td class="mono">algorithm-shodann</td><td class="role">Mechanical gate. Runs the frozen toolchain, verifies fixtures and engine guards. Reports pass/fail with evidence; never repairs.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">clive-prompt-warden</td><td class="mono">algorithm-shodann</td><td class="role">Cross-document consistency. Checks that what one file claims, another has. Reports; never repairs.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">the-algorithm</td><td class="mono">algorithm-shodann</td><td class="role">Skill. Two operations on documents — compress a draft to the shortest version clearing a floor test, or assay a received document against it.</td><td><span class="chip live">Live</span></td></tr>
+          <tr><td class="name">linx-voice-readability-editor</td><td class="mono">algorithm-shodann</td><td class="role">Voice and readability gate for citizen-facing prose. Being retargeted from course language to SHODANN's register.</td><td><span class="chip queued">In flight</span></td></tr>
+          <tr><td class="name">kevin-repo-warden</td><td class="mono">algorithm-shodann</td><td class="role">Repository hygiene. First in the retargeting queue; still carries course-build assumptions.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">program-advisor</td><td class="mono">algorithm-shodann</td><td class="role">Outward-facing counsel — committee-ready rationale. Second in the retargeting queue.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">spine-owner</td><td class="mono">algorithm-shodann</td><td class="role">Product ownership over the course spine. Third in the retargeting queue.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">compile-warden</td><td class="mono">algorithm-shodann</td><td class="role">Mechanical gate that shells out to a C++ compiler — in a Python repository. Documented as not-to-be-run.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">cohort-lead</td><td class="mono">algorithm-shodann</td><td class="role">Runs synthetic cohorts after an artifact clears the compile gate.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">cadence-master</td><td class="mono">algorithm-shodann</td><td class="role">Graduate-and-teach promotion cycles. No SHODANN analogue; slated for deletion once the fleet is exercised.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">module-builder</td><td class="mono">algorithm-shodann</td><td class="role">Builds module N+1 after taking module N. No SHODANN analogue.</td><td><span class="chip stale">Inherited</span></td></tr>
+          <tr><td class="name">liza-theme-skinner</td><td class="mono">algorithm-shodann</td><td class="role">Theme and branching-content work. No SHODANN analogue.</td><td><span class="chip stale">Inherited</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:0.86rem;color:var(--ink-mute);max-width:60ch">
+      One vocabulary collision worth watching: the inherited agents use PRISM bands and SHODANN
+      uses INFRARED → ULTRAVIOLET for a superficially similar idea. They are not the same ladder
+      and they do not map onto each other.
+    </p>
+  </section>
+
+
+  </div><!-- /panel-brief -->
+
+  <div class="tabpanel" id="panel-work" role="tabpanel" aria-labelledby="tab-work" hidden>
+
+    <section>
+      <p class="eyebrow">Decisions waiting on you</p>
+      <h2>Kevin's write scope</h2>
+      <p>
+        <code>docs/csi/ROSTER.md</code> states the principle: <em>&ldquo;Limits are structural where
+        they can be. VITA must never write a student's code, so VITA has no Edit or Write tool. A
+        rule the tool list enforces cannot be talked out of.&rdquo;</em>
+      </p>
+      <p>
+        Kevin holds <code>Write</code> unscoped. His path limit is a sentence in his prompt:
+        <code>Never write outside artifacts/forensics/</code>. Nothing enforces it.
+      </p>
+      <p>
+        He is the roster's <strong>control</strong> — the one that says when the others are wrong.
+        And he was reconstructed from a workflow that reported success for a year while producing
+        nothing. A control with an advisory boundary repeats that shape.
+      </p>
+
+      <div class="decision">
+        <header>
+          <h3>Pick one &mdash; issue #27</h3>
+          <p>All three are defensible. The third is not a cop-out; the principle has &ldquo;where they can be&rdquo; written into it already.</p>
+        </header>
+        <div class="options">
+          <div class="option pick">
+            <span class="key">A</span>
+            <div>
+              <h4>PreToolUse hook <span class="cost small">~15 lines</span></h4>
+              <p>
+                A rule in <code>.claude/settings.json</code> rejecting <code>Write</code> outside
+                <code>artifacts/forensics/</code>. Enforced by the harness, so it cannot be talked
+                out of. Reusable for any future agent, and he keeps filing his own cases.
+                Blast radius is a settings file every agent reads.
+              </p>
+            </div>
+          </div>
+          <div class="option">
+            <span class="key">B</span>
+            <div>
+              <h4>Remove <code>Write</code> entirely <span class="cost medium">changes how he works</span></h4>
+              <p>
+                Strongest, and exactly matches VITA — the tool list enforces it, no config needed.
+                Costs him the ability to file his own case files; he returns the text and a caller
+                places it. That is a change to his job, not only to his permissions.
+              </p>
+            </div>
+          </div>
+          <div class="option">
+            <span class="key">C</span>
+            <div>
+              <h4>Leave it, close #27 <span class="cost none">no cost</span></h4>
+              <p>
+                Maybe this is a case where it cannot be cheap. He has held the limit in practice —
+                his one case file went exactly where it should. Honest, and the roster's own wording
+                allows it.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="decision">
+        <header>
+          <h3>Second Kevin item &mdash; his case file's weak negative</h3>
+          <p>Independent of the above, and much smaller.</p>
+        </header>
+        <div class="options">
+          <div class="option pick">
+            <span class="key">D</span>
+            <div>
+              <h4>Strengthen <code>kevin.json</code>'s <code>no-repair</code> case <span class="cost small">small</span></h4>
+              <p>
+                Its negative keys off a fenced block containing <code>jq -r|review_content=</code>.
+                That catches a literal patch dump and misses a paraphrased fix — <em>&ldquo;use jq's
+                select instead of positional indexing&rdquo;</em> passes. Same weak-keyword class as
+                the <code>wrong-branch</code> case that once scored <em>&ldquo;do not run
+                <code>git push --force</code>&rdquo;</em> identically to recommending it.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Everything else open</p>
+      <h2>The rest of the board</h2>
+
+      <div class="decision">
+        <header>
+          <h3>Two I would clear without ceremony</h3>
+          <p>Both are artifacts of how I built things, not of anything you asked for.</p>
+        </header>
+        <div class="options">
+          <div class="option pick">
+            <span class="key">E</span>
+            <div>
+              <h4>Close #31 as superseded <span class="cost none">no cost</span></h4>
+              <p>
+                Cross-repository drift detection. Your <code>ann-sho</code> rename (#32) dissolves
+                it — two differently-named agents have no shared identity to keep in sync. I built
+                stamps, a lint and fixtures for a framing you then discarded in one sentence. The
+                machinery stays; it just has nothing to watch until the next genuinely shared file.
+              </p>
+            </div>
+          </div>
+          <div class="option pick">
+            <span class="key">F</span>
+            <div>
+              <h4>Split #28 in two <span class="cost small">small</span></h4>
+              <p>
+                I bundled two unrelated decisions. The bounded retry on 429/5xx is a small code
+                change. The model-retirement canary is recurring spend on a timer. They cannot be
+                answered together, which is why the issue is stuck.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="decision">
+        <header>
+          <h3>Queued, not waiting on a decision</h3>
+        </header>
+        <div class="options">
+          <div class="option">
+            <span class="key">32</span>
+            <div>
+              <h4>The <code>ann-sho</code> rename</h4>
+              <p>
+                Filed at your direction, not to be actioned without a further go-ahead. Touches the
+                roster, the case corpus, and two harnesses — the wrong thing to interleave with
+                anything else.
+              </p>
+            </div>
+          </div>
+          <div class="option">
+            <span class="key">&mdash;</span>
+            <div>
+              <h4>The PRISM / clearance note</h4>
+              <p>
+                <em>&ldquo;SHODANN should be aware that the PRISM bands and the Cognitive Clearance
+                levels are not the same thing. But they are not entirely different, either.&rdquo;</em>
+                Parked — it does not exercise the gate, so it waits, as you said.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <p class="eyebrow">Closed today</p>
+      <h2>What came off the board</h2>
+      <div class="ledger">
+        <div class="ledger-row done"><span class="num">#22</span><span class="what">Argument list too long on large PRs</span><span class="chip live">fixed</span></div>
+        <div class="ledger-row done"><span class="num">#26</span><span class="what">Duplicate <code>ai-code-review.yml</code></span><span class="chip live">deleted</span></div>
+        <div class="ledger-row done"><span class="num">#29</span><span class="what">Hardcoded laptop path in the gate</span><span class="chip live">fixed</span></div>
+        <div class="ledger-row done"><span class="num">&mdash;</span><span class="what">Where the backend gate runs</span><span class="chip live">decided</span></div>
+      </div>
+      <p style="font-size:0.86rem;color:var(--ink-mute);max-width:60ch">
+        #22 and #26 turned out to be the same file. The bug was fixed in the copy that runs and left
+        standing in the copy that does not, so deleting the duplicate finished both. CI now fails any
+        pull request that tracks a workflow file outside the repository root — the defect had
+        occurred twice and both times was found by reading history rather than by anything watching.
+      </p>
+    </section>
+
+  </div><!-- /panel-work -->
+
+  <footer class="foot">
+    <p style="max-width:60ch">
+      Spike — built to introduce the persona and chart the fleet, not to settle the two-repository
+      question. Sources: <code>design_docs/SHODANN_VOICE_GUIDE.md</code> and
+      <code>src/shodann/clearance.py</code> in <span class="mono">algorithm-shodann</span>;
+      agent frontmatter read from both repositories on 2026-07-31.
+    </p>
+    <p>Base version 2026-07-31.1 · nine bands · one rate.</p>
+  </footer>
+
+</div>
+
+<script>
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+    function select(tab) {
+      tabs.forEach(function (t) {
+        var panel = document.getElementById(t.getAttribute('aria-controls'));
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        panel.hidden = !on;
+      });
+      tab.focus();
+    }
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { select(tab); });
+      tab.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          select(tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]);
+        }
+      });
+    });
+  })();
+</script>
