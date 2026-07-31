@@ -725,6 +725,11 @@
   // Roving tabindex: exactly one tab is in the sequential tab order and the
   // arrows move between them. Without it every tab is a separate Tab stop,
   // which is legal but not what role="tablist" promises a screen reader.
+  // ASSUMES ONE TABLIST PER DOCUMENT. The selector is document-wide, so two
+  // independent tab groups on one page would share an arrow-key ring and
+  // navigate into each other. True of both documents today. A page that needs
+  // two must scope this to a container first - noted here rather than left for
+  // the next person to find by pressing an arrow key.
   (function () {
     var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
     if (!tabs.length) return;

@@ -33,6 +33,10 @@ WHAT THIS DELIBERATELY DOES NOT DO, so "checked" is not overclaimed:
     nothing else. It is not a CSS parser. Where it cannot locate a block it
     says so as its own failure rather than reporting the empty result as a
     hundred colour mismatches.
+  - It compares values, and separately checks that every colour in the base
+    :root has a variant in each override. It does not check that any of those
+    values are *good* - a theme where every colour is correct-by-this-file and
+    unreadable on its ground passes here. Look at the page.
 
     python3 tests/docs/artifact_test.py
 
@@ -252,14 +256,96 @@ def body_at(text: str, brace_index: int) -> str:
 
 
 def media_spans(text: str) -> list[tuple[int, int]]:
+    """Where the prefers-color-scheme blocks are, so the base :root search can
+    step over the one nested inside them.
+
+    A malformed block raises rather than being skipped. The first version
+    swallowed it — and the consequence was specific: an unreadable @media block
+    is not excluded from the search, so the `:root` inside it can be picked up
+    as the base and every comparison after that is against the wrong palette.
+    A file that says elsewhere "this is a failure of this check, not a colour
+    mismatch" does not get to have a silent `except: pass` in it.
+    """
     spans = []
     for m in MEDIA_RE.finditer(text):
         open_i = text.index("{", m.end())
-        try:
-            spans.append((open_i, open_i + len(body_at(text, open_i))))
-        except BlockNotFound:
-            pass
+        spans.append((open_i, open_i + len(body_at(text, open_i))))
     return spans
+
+
+# A value that names a colour. Used to tell a token that *should* have a theme
+# variant from one that legitimately does not.
+COLOUR_RE = re.compile(r"^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|color-mix\()")
+
+# Colour tokens that are deliberately the same in every theme. Empty today.
+# Pinned as an explicit list rather than inferred, on the same reasoning as
+# KEVIN_TOOLS in tests/workflow/kevin_scope_test.py: an exemption should be a
+# visible, deliberate edit that a reader can question, not a gap that a
+# heuristic quietly opens. Adding to this is a claim that the colour reads
+# correctly on both grounds, which is a thing to check by looking.
+THEME_INVARIANT: set[str] = set()
+
+
+def check_every_colour_themes() -> list[str]:
+    """A colour declared in the base :root must appear in every override block.
+
+    This is the check that was missing, and its absence was not an oversight in
+    the ordinary sense - it was a false negative *by construction*.
+    check_theme_parity compares the tokens the override blocks happen to name,
+    so a variable declared once in the base and omitted from all three
+    overrides was invisible to it. The harness would report "themes agree by
+    both routes" for a document where an entire colour never themed at all.
+
+    It shipped that way, and `--ultraviolet` in the calibration brief was
+    exactly it: eight of nine spectrum bands lifted for dark, one stayed put,
+    and the check written to catch theme drift said everything agreed.
+
+    Fonts, measures and radii are not colours and are not expected to theme,
+    which is what makes the rule statable without a hand-maintained list of
+    everything in the file.
+    """
+    out = []
+    for path in html_files():
+        text = read(path)
+        try:
+            base = tokens(block(text, BASE_ROOT_RE, outside_media=True))
+        except BlockNotFound:
+            continue  # check_theme_parity reports this; not doubled here
+
+        overrides: dict[str, dict[str, str]] = {}
+        if MEDIA_RE.search(text):
+            try:
+                name = MEDIA_RE.search(text).group(1).lower()
+                overrides[f"prefers-color-scheme:{name}"] = tokens(
+                    block(text, MEDIA_RE_BRACE))
+            except BlockNotFound:
+                pass
+        for name in ("light", "dark"):
+            try:
+                overrides[f'data-theme="{name}"'] = tokens(
+                    block(text, re.compile(THEME_RE.format(name=name))))
+            except BlockNotFound:
+                pass
+
+        if not overrides:
+            continue
+
+        for key, value in sorted(base.items()):
+            if not COLOUR_RE.match(value) or key in THEME_INVARIANT:
+                continue
+            absent = [where for where, toks in overrides.items() if key not in toks]
+            if len(absent) == len(overrides):
+                out.append(
+                    f"{rel(path)}: {key} is a colour ({value}) declared only in "
+                    "the base :root — it never themes, while its neighbours do. "
+                    "Give it a variant in each override, or add it to "
+                    "THEME_INVARIANT here and say why.")
+            elif absent:
+                out.append(
+                    f"{rel(path)}: {key} themes in some blocks but is missing "
+                    f"from {', '.join(absent)} — it will fall back to the base "
+                    f"value ({value}) there while its neighbours change.")
+    return out
 
 
 def block(text: str, pattern: re.Pattern[str], *, outside_media: bool = False) -> str:
@@ -387,7 +473,8 @@ def main() -> int:
               "check that passes because it found nothing to check.")
         return 1
 
-    failures = check_parses() + check_shared_widget() + check_theme_parity()
+    failures = (check_parses() + check_shared_widget()
+                + check_theme_parity() + check_every_colour_themes())
 
     if failures:
         print("docs artifact test: FAILED")
@@ -396,7 +483,7 @@ def main() -> int:
         return 1
 
     print(f"docs artifact test: {len(files)} documents parse whole, "
-          "one shared widget, themes agree by both routes")
+          "one shared widget, every colour themes, both routes agree")
     return 0
 
 
