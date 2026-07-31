@@ -85,6 +85,20 @@ CASES: list[tuple[dict, bool, str]] = [
       "tool_input": {"file_path": "artifacts/forensics/x.md"}},
      True, "a non-absolute cwd is not something to guess from"),
 
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/named-tool.md"}},
+     False, "a known write tool naming an allowed path still passes"),
+
+    # Isolates the tool_name gate: the path is ALLOWED, so the only thing
+    # that can refuse this is the unrecognised tool. An earlier version of
+    # this case used a Bash payload with no path key at all, which the
+    # no-path branch denied anyway - it passed whether the gate existed or
+    # not, and proved nothing.
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Bash",
+      "tool_input": {"file_path": "artifacts/forensics/allowed.md"}},
+     True, "an unrecognised tool is refused even with an allowed path - it "
+           "means the matcher was widened without the hook being told"),
+
     # --- and open for everyone else ---
     ({"agent_type": "general-purpose", "cwd": "{repo}",
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
@@ -179,7 +193,7 @@ def check_wiring() -> list[str]:
 # Bash is in this set and is the known gap: `echo x > path` is a write the hook
 # never sees. It is listed here so that removing it, or adding anything beside
 # it, trips this test and forces the coverage question to be asked again.
-KEVIN_TOOLS = {"Read", "Grep", "Glob", "Bash", "Write"}
+KEVIN_TOOLS = {"read", "grep", "glob", "bash", "write"}
 
 TOOLS_RE = re.compile(r"^tools:\s*(.+)$", re.M)
 
@@ -196,7 +210,10 @@ def check_kevin_tool_list_is_unchanged() -> list[str]:
         return ["no `tools:` line in .claude/agents/kevin.md, or it is not a "
                 "single-line comma list — this check cannot read it, which is "
                 "a failure rather than a pass"]
-    tools = {t.strip() for t in match.group(1).split(",") if t.strip()}
+    # Tolerant of formatting: whitespace and case are normalised, so a
+    # cosmetic reflow of the frontmatter does not fail this on substance it
+    # does not have.
+    tools = {t.strip().lower() for t in match.group(1).split(",") if t.strip()}
     if tools != KEVIN_TOOLS:
         added = sorted(tools - KEVIN_TOOLS)
         removed = sorted(KEVIN_TOOLS - tools)

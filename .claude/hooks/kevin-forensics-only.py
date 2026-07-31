@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import PurePosixPath
+import posixpath
 
 AGENT = "kevin"
 ALLOWED = "artifacts/forensics"
@@ -35,6 +35,11 @@ ALLOWED = "artifacts/forensics"
 # were ever added to his tool list. He has neither today; the hook does not
 # depend on that staying true.
 PATH_KEYS = ("file_path", "notebook_path", "path")
+
+# The tools this hook knows how to read a path out of. Must stay in step with
+# the matcher in .claude/settings.json; tests/workflow/kevin_scope_test.py
+# fails if they diverge.
+WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 
 
 def allow() -> None:
@@ -53,30 +58,29 @@ def deny(reason: str) -> None:
     sys.exit(0)
 
 
-def resolve(base: PurePosixPath, target: str) -> PurePosixPath:
-    """Normalise `..` textually. No filesystem access, so nothing to race.
+def resolve(cwd: str, target: str) -> str:
+    """Absolute, `..` collapsed, no filesystem access.
 
-    Symlinks are deliberately not followed, and that is a real gap rather
-    than a neutral choice. A symlink inside artifacts/forensics/ pointing
-    outside it resolves as inside it here, and the write escapes.
+    `posixpath.normpath` rather than a hand-rolled loop: an earlier version
+    popped `..` by hand, which is security-critical logic reimplemented beside
+    a stdlib function that already does it and has been read by more people.
+    `posixpath` specifically, not `os.path`, so the result does not change
+    shape on a Windows checkout.
+
+    Symlinks are deliberately not followed, and that is a real gap rather than
+    a neutral choice. A symlink inside artifacts/forensics/ pointing outside it
+    resolves as inside it here, and the write escapes.
 
     The first version of this comment argued the directory is
     repository-controlled and reviewed, so the exposure equals committing the
     file. That does not survive Kevin holding Bash: he can create the symlink
     himself, in the same session, before the Write. Following symlinks would
-    close it at the cost of a filesystem stat on every write and a
+    close it at the cost of a stat on every write and a
     time-of-check-to-time-of-use race of its own. Neither is obviously right,
-    so the gap is written down instead of argued away. See ROSTER.md.
+    so the gap is written down instead of argued away. See ROSTER.md and #36.
     """
-    path = base / target if not target.startswith("/") else PurePosixPath(target)
-    parts: list[str] = []
-    for part in path.parts:
-        if part == "..":
-            if parts and parts[-1] not in ("/", ""):
-                parts.pop()
-        elif part not in (".",):
-            parts.append(part)
-    return PurePosixPath(*parts) if parts else PurePosixPath("/")
+    joined = target if target.startswith("/") else posixpath.join(cwd, target)
+    return posixpath.normpath(joined)
 
 
 def main() -> None:
@@ -92,6 +96,19 @@ def main() -> None:
 
     if not isinstance(payload, dict) or payload.get("agent_type") != AGENT:
         allow()
+        return
+
+    # Defence in depth. The matcher in settings.json decides what reaches this
+    # hook; this decides what it will act on. The two are separate statements
+    # of the same list and can drift, so an unrecognised tool arriving here is
+    # a refusal rather than a shrug - it means the matcher was widened without
+    # this being updated, and the safe reading of an unknown write path is no.
+    tool_name = payload.get("tool_name")
+    if tool_name is not None and tool_name not in WRITE_TOOLS:
+        deny(f"Kevin's write scope could not be checked: {tool_name!r} reached "
+             "this hook, which only knows how to read a path out of "
+             f"{', '.join(WRITE_TOOLS)}. Widening the matcher needs this "
+             "updated too.")
         return
 
     tool_input = payload.get("tool_input")
@@ -116,11 +133,10 @@ def main() -> None:
              "the payload, so the allowed directory cannot be located.")
         return
 
-    base = PurePosixPath(cwd)
-    resolved = resolve(base, target)
-    allowed_root = resolve(base, ALLOWED)
+    resolved = resolve(cwd, target)
+    allowed_root = resolve(cwd, ALLOWED)
 
-    if allowed_root in resolved.parents:
+    if resolved.startswith(allowed_root + "/"):
         allow()
         return
 
@@ -134,4 +150,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - the promise is the point
+        # The docstring promises this exits 0 on every path, because a hook
+        # that errors blocks every write in the repository. That promise has
+        # to hold against edits that introduce a branch nobody thought about,
+        # so the catch-all is here and it fails closed.
+        deny("Kevin's write scope could not be checked: the hook raised "
+             f"{type(exc).__name__}. Refusing rather than assuming.")

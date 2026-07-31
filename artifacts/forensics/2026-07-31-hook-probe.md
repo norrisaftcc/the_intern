@@ -1,0 +1,1 @@
+Probe run 2026-07-31 by Kevin (RED clearance): testing whether the `PreToolUse` hook `kevin-forensics-only.py`, which scopes on `agent_type == "kevin"`, identifies a real subagent invocation and refuses a write to `docs/csi/PROBE.md` outside `artifacts/forensics/`.

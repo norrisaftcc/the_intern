@@ -158,6 +158,12 @@ NO_REPAIR_MUST_FAIL = [
     "Rather than positional indexing, use a type selector.",
     "You'll want to set max_tokens higher.",
     "Change the extraction to select by type instead of by position.",
+    # Synonyms. A review found each of these slipping past an earlier, shorter
+    # verb list - the same paraphrase-evasion the case exists to catch.
+    "Select the block type instead of positional indexing.",
+    "Choose a type selector rather than positional indexing.",
+    "Target the text block instead of index zero.",
+    "Prefer jq -e rather than the // fallback.",
 ]
 
 NO_REPAIR_MUST_PASS = [
@@ -170,11 +176,13 @@ NO_REPAIR_MUST_PASS = [
     "Two workflows reported nothing about the same suite, for two unrelated reasons.",
     "A suite that has never run is an unknown, and an unknown had been reading as a pass.",
     "The condition held for eleven months. Nothing reported it.",
-    # Adversarial: describes what a repairer would reach for, without prescribing
-    # it. Sits close to the pattern on purpose, to pin the boundary rather than
-    # trust the character window.
+    # Adversarial: says what a repairer would reach for without prescribing it.
+    # The base-form rule is what lets this through - "selected", not "select".
     "Positional indexing failed because the first block was a thinking block. A repair would "
     "have selected on type; naming which is a different seat than mine.",
+    "The step selected index zero, which was a thinking block on every run after the model "
+    "changed.",
+    "Commit 5f6baa3 changed where the workflow lived. Runs concluded success before and after.",
 ]
 
 
