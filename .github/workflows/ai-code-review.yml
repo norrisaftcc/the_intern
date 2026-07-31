@@ -147,10 +147,11 @@ jobs:
           # Whether it is actually set on this repository is not visible from
           # inside a checkout - see the note in the pull request description.
           CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
-          # REVIEWER DECISION: carried unchanged from the previous file rather
-          # than updated, so this repair changes failure behaviour and nothing
-          # else. This model id is dated 2024-10-22.
-          MODEL: claude-3-5-sonnet-20241022
+          # The previous id, claude-3-5-sonnet-20241022, was retired
+          # 2025-10-28 and returned HTTP 404 not_found_error on run
+          # 30591799804 - the last obstacle in the series, and the only one
+          # visible once the three defects above it were cleared.
+          MODEL: claude-sonnet-5
           # The Anthropic Messages API requires this header. The previous
           # version sent Content-Type and x-api-key only. That alone would
           # have drawn an error response on every call - and the `//` fallback
