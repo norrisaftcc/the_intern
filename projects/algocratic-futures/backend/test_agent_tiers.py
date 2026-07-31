@@ -3,6 +3,7 @@ Test Suite for Agent Prompt Tiers
 Validates Flash and Thinker tier implementations
 """
 
+import sys
 import time
 import json
 from typing import Dict, List, Tuple
@@ -31,6 +32,9 @@ class AgentTierTester:
     """Test agent prompts across different tiers"""
     
     def __init__(self):
+        # Every validator folds its verdict in here, so a failure reaches the
+        # exit code instead of stopping at a print statement.
+        self.passed = True
         self.test_cases = {
             'basic_greeting': "Hello, who are you?",
             'help_request': "I'm getting an error in my code, can you help?",
@@ -113,8 +117,8 @@ class AgentTierTester:
             results.append(result)
             
             # Validate against expectations
-            self._validate_flash_result(result)
-        
+            self.passed = self._validate_flash_result(result) and self.passed
+
         return results
     
     def test_thinker_tier(self, agent: str = 'liza') -> List[TestResult]:
@@ -153,8 +157,8 @@ class AgentTierTester:
             results.append(result)
             
             # Validate against expectations
-            self._validate_thinker_result(result)
-        
+            self.passed = self._validate_thinker_result(result) and self.passed
+
         return results
     
     def _simulate_flash_response(self, agent: str, input_text: str) -> str:
@@ -224,7 +228,7 @@ What specific frame of this concept draws your attention?"""
         
         return responses.get(input_text, default)
     
-    def _validate_flash_result(self, result: TestResult):
+    def _validate_flash_result(self, result: TestResult) -> bool:
         """Validate Flash tier result against expectations"""
         print(f"Response: {result.response[:100]}...")
         print(f"Metrics:")
@@ -242,8 +246,9 @@ What specific frame of this concept draws your attention?"""
         
         if passed:
             print(f"  ✅ PASSED")
-    
-    def _validate_thinker_result(self, result: TestResult):
+        return passed
+
+    def _validate_thinker_result(self, result: TestResult) -> bool:
         """Validate Thinker tier result against expectations"""
         print(f"Response preview: {result.response[:150]}...")
         print(f"Metrics:")
@@ -261,9 +266,10 @@ What specific frame of this concept draws your attention?"""
         
         if passed:
             print(f"  ✅ PASSED")
-    
-    def test_prompt_selector(self):
-        """Test the prompt selection logic"""
+        return passed
+
+    def test_prompt_selector(self) -> bool:
+        """Test the prompt selection logic. True when every model routes right."""
         print(f"\n{'='*60}")
         print("Testing Prompt Selector")
         print(f"{'='*60}")
@@ -277,18 +283,21 @@ What specific frame of this concept draws your attention?"""
             ('unknown-model', 'flash'),  # Should default to flash
         ]
         
+        all_correct = True
         for model, expected_tier in test_models:
             prompt = PromptSelector.get_prompt('liza', model)
-            
+
             # Check if correct tier selected
             if expected_tier == 'flash':
-                is_flash = len(prompt) < 2000  # Flash prompts are much shorter
-                result = "✅" if is_flash else "❌"
+                correct = len(prompt) < 2000  # Flash prompts are much shorter
             else:
-                is_thinker = len(prompt) > 2000
-                result = "✅" if is_thinker else "❌"
-            
+                correct = len(prompt) > 2000
+            if not correct:
+                all_correct = False
+            result = "✅" if correct else "❌"
+
             print(f"{result} {model} -> {expected_tier} tier (prompt length: {len(prompt)})")
+        return all_correct
     
     def generate_report(self, flash_results: List[TestResult], thinker_results: List[TestResult]):
         """Generate comparison report"""
@@ -332,20 +341,30 @@ def main():
     thinker_results = tester.test_thinker_tier('liza')
     
     # Test prompt selector
-    tester.test_prompt_selector()
-    
+    selector_ok = tester.test_prompt_selector()
+
     # Generate comparison report
     tester.generate_report(flash_results, thinker_results)
-    
+
+    passed = tester.passed and selector_ok
+
     print(f"\n{'='*60}")
     print("TESTING COMPLETE")
     print(f"{'='*60}")
-    print("\nDEPLOYMENT READY:")
-    print("  1. Flash tier validated for fast models")
-    print("  2. Thinker tier validated for advanced models")
-    print("  3. Prompt selector functioning correctly")
-    print("  4. Both maintain character identity")
-    print("\nShip what works, cut what doesn't. ✓")
+    if passed:
+        print("\nDEPLOYMENT READY:")
+        print("  1. Flash tier validated for fast models")
+        print("  2. Thinker tier validated for advanced models")
+        print("  3. Prompt selector functioning correctly")
+        print("  4. Both maintain character identity")
+        print("\nShip what works, cut what doesn't. ✓")
+    else:
+        print("\nNOT DEPLOYMENT READY - see the failures above.")
+    return passed
 
 if __name__ == "__main__":
-    main()
+    # The return value is the point. This block previously called main() and
+    # discarded it, and main() returned nothing anyway, so the script printed
+    # "DEPLOYMENT READY" and exited 0 whatever the checks found - a gate that
+    # could not fail.
+    sys.exit(0 if main() else 1)
