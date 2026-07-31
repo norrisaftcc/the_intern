@@ -434,7 +434,7 @@
   <section class="panel" id="p-board" role="tabpanel" aria-labelledby="t-board">
     <div class="strip">
       <div class="stat"><div class="n ok">6</div><div class="k">PRs merged</div><div class="sub">30–31 Jul</div></div>
-      <div class="stat"><div class="n acc">6</div><div class="k">harnesses in CI</div><div class="sub">117 checks · 0 before</div></div>
+      <div class="stat" data-harness-count="8"><div class="n acc">8</div><div class="k">harnesses in CI</div><div class="sub">165 checks · 0 before</div></div>
       <div class="stat"><div class="n ok">1</div><div class="k">in flight</div><div class="sub">#40 · all green</div></div>
       <div class="stat"><div class="n warn">8</div><div class="k">open, this work</div><div class="sub">+12 older backlog</div></div>
       <div class="stat"><div class="n bad">3</div><div class="k">dead workflows</div><div class="sub">all three resolved</div></div>
@@ -507,7 +507,7 @@
     </div>
 
     <h2>The harnesses</h2>
-    <p class="note">All six were written before this stretch or during it. None of them ran in CI until
+    <p class="note">All eight were written before this stretch or during it. None of them ran in CI until
       <code>checks.yml</code> existed. A check that exists and never executes is the thing this whole
       run of work is about.</p>
     <div class="scroll">
@@ -520,6 +520,8 @@
           <tr><td class="nm">extraction_test.py</td><td class="num">6</td><td>API response shapes, including the ones that used to pass silently</td></tr>
           <tr><td class="nm">stray_workflow_test.py</td><td class="num">7</td><td>no workflow reappears in a subdirectory</td></tr>
           <tr><td class="nm">kevin_scope_test.py</td><td class="num">19</td><td>Kevin's write scope, fails closed, wiring covered</td></tr>
+          <tr><td class="nm">artifact_test.py</td><td class="num">2</td><td>the documents in <code>docs/</code> — parse, one shared widget, themes agree by both routes</td></tr>
+          <tr><td class="nm">harness_test.py</td><td class="num">25</td><td>the harness above, pinned by the three defects it has already shipped</td></tr>
         </tbody>
       </table>
     </div>

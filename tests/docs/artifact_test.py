@@ -57,11 +57,21 @@ DOCS = REPO / "docs"
 # it would point DOCS somewhere with no HTML in it, and main()'s empty-set
 # branch would report "no HTML under docs/" as though the documents had been
 # deleted. Anchored so a moved file says what actually happened.
-if not (REPO / ".git").exists() and not (REPO / "tests" / "docs").is_dir():
+#
+# The first version of this guard was `if not .git and not tests/docs`, which
+# only fires when BOTH signals are wrong - so a nested repository, a submodule,
+# or a moved file with a .git at some other ancestor sails straight through. A
+# guard added to fix a fragility, carrying the same fragility. Review caught it.
+#
+# This asserts the one thing that is load-bearing: that parents[2] lands where
+# this file says it does. It cannot be satisfied by coincidence.
+_EXPECTED = REPO / "tests" / "docs" / "artifact_test.py"
+if Path(__file__).resolve() != _EXPECTED:
     raise SystemExit(
-        f"artifact_test.py: computed repository root {REPO} does not look like "
-        "one. This file moved and parents[2] no longer reaches the root; fix "
-        "the depth rather than letting the checks run against the wrong tree.")
+        f"artifact_test.py: parents[2] resolves to {REPO}, which would put this "
+        f"file at {_EXPECTED} - it is actually at {Path(__file__).resolve()}. "
+        "The file moved; fix the depth rather than letting the checks run "
+        "against the wrong tree.")
 
 # Elements with no closing tag. A hand-written list rather than a dependency;
 # if one is missing the parser reports a false unclosed tag, which fails loudly
@@ -226,6 +236,19 @@ def check_shared_widget() -> list[str]:
                            f"(<script{attrs}>). This harness cannot compare it, "
                            "and a standalone document should not need one.")
                 continue
+            if "<!--" in body:
+                # The one case where this regex genuinely disagrees with the
+                # parser: `<!--` inside a script opens the double-escaped
+                # state, in which `</script>` no longer ends the element. The
+                # docstring named this as "nothing here uses it", which is a
+                # gap with no guard - true until someone pastes a comment
+                # guard into the widget. Refused rather than mis-parsed.
+                out.append(f"{rel(path)}: an inline script contains `<!--`, "
+                           "which opens the double-escaped state where "
+                           "`</script>` no longer ends the element. This "
+                           "harness reads scripts with a regex that cannot "
+                           "follow that. Remove it, or teach this check.")
+                continue
             if body.strip():
                 where = rel(path) + (f" (<script{attrs}>)" if attrs.strip() else "")
                 scripts.setdefault(body, []).append(where)
@@ -245,48 +268,64 @@ def check_shared_widget() -> list[str]:
 DECL_NAME_RE = re.compile(r"^\s*(--[\w-]+)\s*:\s*(.*)$", re.S)
 
 
-def declarations(css: str) -> list[str]:
-    """Split a declaration block on the semicolons that actually separate it.
+COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 
-    `([^;]+);` was the first version and it truncates `content: ";"` at the
-    quote's semicolon. `body_at` already had to learn strings and comments to
-    count braces safely; splitting declarations needs the same knowledge and
-    was written without it, which is how one function in a file ends up
-    stricter than another about the same input.
+
+def scan_css(css: str, stop: str):
+    """Walk CSS, yielding (index, char) for characters outside strings and comments.
+
+    `declarations()` and `body_at()` each hand-rolled this quote-tracking and
+    comment-skipping loop. That is the second time in this file that "should
+    have been one primitive" came up - the first is the widget this whole pull
+    request is about - and the two copies had already drifted: body_at learned
+    about strings in order to count braces safely, and declarations was written
+    afterwards without them and truncated `content: ";"`.
     """
-    parts, buf, quote, i, n = [], [], None, 0, len(css)
+    quote, i, n = None, 0, len(css)
     while i < n:
         c = css[i]
         if quote:
-            buf.append(c)
-            if c == "\\" and i + 1 < n:
-                buf.append(css[i + 1])
+            if c == "\\":
                 i += 2
                 continue
             if c == quote:
                 quote = None
         elif c in "\"'":
             quote = c
-            buf.append(c)
         elif c == "/" and css.startswith("/*", i):
             end = css.find("*/", i + 2)
             i = n if end < 0 else end + 2
             continue
-        elif c in ";{}":
-            # Braces separate as well as semicolons. The media blocks here wrap
-            # a nested `:root { ... }`, so splitting on `;` alone glued the
-            # selector onto the first declaration and lost it - which the
-            # harness caught the moment it ran, reporting the first token of
-            # every media block as missing. Left as a comment because the
-            # regex this replaced did not have the bug, and a fix that
-            # introduces one is worth marking.
-            parts.append("".join(buf))
-            buf = []
-        else:
-            buf.append(c)
+        elif c in stop:
+            yield i, c
         i += 1
-    parts.append("".join(buf))
-    return parts
+
+
+def declarations(css: str) -> list[str]:
+    """Split a declaration block on the separators that actually separate it.
+
+    `([^;]+);` was the first version and it truncates `content: ";"` at the
+    quote's semicolon. Braces separate as well as semicolons: the media blocks
+    here wrap a nested `:root { ... }`, and splitting on `;` alone glued the
+    selector onto the first declaration and lost it - which the harness caught
+    the moment it ran. Noted because the regex this replaced did not have that
+    bug, and a fix that introduces one is worth saying out loud.
+    """
+    parts, last = [], 0
+    for i, _ in scan_css(css, ";{}"):
+        parts.append(css[last:i])
+        last = i + 1
+    parts.append(css[last:])
+    # Comments survive the split - scan_css steps over them so a `;` inside one
+    # cannot separate declarations, but the text is still in the slice, and a
+    # leading `/* ... */` breaks DECL_NAME_RE's anchor. The previous
+    # hand-rolled loop dropped comment characters as it went; extracting the
+    # scanner lost that, and every base :root opening with a comment came back
+    # missing its first token. Caught by the two real documents, NOT by
+    # harness_test - which is a gap in the meta-test, now closed with a case.
+    return [COMMENT_RE.sub(" ", part) for part in parts]
+
+
 MEDIA_RE = re.compile(r"@media\s*\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", re.I)
 BASE_ROOT_RE = re.compile(r":root\s*\{")
 THEME_RE = r':root\s*\[\s*data-theme\s*=\s*["\']{name}["\']\s*\]\s*\{{'
@@ -299,34 +338,17 @@ class BlockNotFound(Exception):
 def body_at(text: str, brace_index: int) -> str:
     """Brace-balanced body starting at an opening brace.
 
-    Aware of strings and `/* */` comments, because a declaration like
-    `content: "{"` would otherwise desync the counter and silently truncate
-    the block — producing a short token map and a page of invented mismatches.
-    Not a CSS parser; this is the smallest thing that is not wrong here.
+    Aware of strings and `/* */` comments through the shared scanner, because a
+    declaration like `content: "{"` would otherwise desync the counter and
+    silently truncate the block - producing a short token map and a page of
+    invented mismatches. Not a CSS parser; this is the smallest thing that is
+    not wrong here.
     """
-    depth, i, n = 0, brace_index, len(text)
-    quote = None
-    while i < n:
-        c = text[i]
-        if quote:
-            if c == "\\":
-                i += 2
-                continue
-            if c == quote:
-                quote = None
-        elif c in "\"'":
-            quote = c
-        elif c == "/" and text.startswith("/*", i):
-            end = text.find("*/", i + 2)
-            i = n if end < 0 else end + 2
-            continue
-        elif c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return text[brace_index + 1:i]
-        i += 1
+    depth = 0
+    for i, c in scan_css(text[brace_index:], "{}"):
+        depth += 1 if c == "{" else -1
+        if depth == 0:
+            return text[brace_index + 1:brace_index + i]
     raise BlockNotFound("unbalanced braces from this selector to end of file")
 
 
@@ -361,7 +383,7 @@ COLOUR_RE = re.compile(r"^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|color-mix\()")
 THEME_INVARIANT: set[str] = set()
 
 
-def check_every_colour_themes() -> list[str]:
+def check_every_colour_themes(all_blocks: list[ThemeBlocks]) -> list[str]:
     """A colour declared in the base :root must appear in every override block.
 
     This is the check that was missing, and its absence was not an oversight in
@@ -380,9 +402,8 @@ def check_every_colour_themes() -> list[str]:
     everything in the file.
     """
     out = []
-    for path in html_files():
-        blocks = ThemeBlocks(path)
-        out += blocks.errors
+    for blocks in all_blocks:
+        path = blocks.path
         if not blocks.themes or blocks.base is None:
             continue
         overrides = blocks.overrides()
@@ -503,7 +524,7 @@ class ThemeBlocks:
         return out
 
 
-def check_theme_parity() -> list[str]:
+def check_theme_parity(all_blocks: list[ThemeBlocks]) -> list[str]:
     """The two ways of reaching a theme must agree.
 
     A viewer's OS preference arrives as `prefers-color-scheme`; their explicit
@@ -518,12 +539,8 @@ def check_theme_parity() -> list[str]:
     in that way is why it is written like this.
     """
     out = []
-    for path in html_files():
-        blocks = ThemeBlocks(path)
-        # Errors are reported by check_every_colour_themes, which reads the same
-        # blocks. Not repeated here - but note this is a claim about a shared
-        # object, not two functions promising each other something. If that
-        # function is ever removed, this needs its own `out += blocks.errors`.
+    for blocks in all_blocks:
+        path = blocks.path
         if not any(v for v in blocks.themed.values()):
             continue  # no theme toggle; nothing can disagree
 
@@ -566,6 +583,43 @@ MEDIA_RE_BRACE = re.compile(
     r"@media\s*\(\s*prefers-color-scheme\s*:\s*\w+\s*\)\s*\{", re.I)
 
 
+HARNESS_STEP_RE = re.compile(r"run:\s*python3\s+(tests/\S+\.py)")
+BOARD = "docs/big-board.html"
+
+
+def check_board_harness_count() -> list[str]:
+    """The board's headline harness count must match what CI actually runs.
+
+    The board is a static snapshot and says so, but "how many harnesses run in
+    CI" is not a fact about the day it was written - it is a fact about the
+    repository, checkable at any moment, and it was WRONG IN THE PULL REQUEST
+    THAT ADDED IT: checks.yml ran eight, the board said six. A page whose
+    subject is checks that report without checking, misreporting the number of
+    checks.
+
+    This does not make the board live. It pins the one number that can be
+    derived, so the document cannot claim more coverage than exists.
+    """
+    board = REPO / BOARD
+    workflow = REPO / ".github/workflows/checks.yml"
+    if not board.exists() or not workflow.exists():
+        return []
+
+    actual = sorted(set(HARNESS_STEP_RE.findall(read(workflow))))
+    text = read(board)
+    m = re.search(r'data-harness-count="(\d+)"', text)
+    if not m:
+        return [f"{BOARD}: no data-harness-count attribute. It states a number "
+                "of harnesses in prose; that number needs to be machine-"
+                f"checkable against checks.yml, which runs {len(actual)}."]
+    claimed = int(m.group(1))
+    if claimed != len(actual):
+        return [f"{BOARD}: claims {claimed} harnesses; checks.yml runs "
+                f"{len(actual)} ({', '.join(actual)}). The board was already "
+                "wrong about this once, in the pull request that added it."]
+    return []
+
+
 def main() -> int:
     if not DOCS.is_dir():
         print("docs artifact test: FAILED")
@@ -581,8 +635,20 @@ def main() -> int:
               "check that passes because it found nothing to check.")
         return 1
 
-    failures = (check_parses() + check_shared_widget()
-                + check_theme_parity() + check_every_colour_themes())
+    # Read once, here. Both theme checks used to build their own ThemeBlocks,
+    # and the errors were emitted by whichever of them happened to run - a
+    # coupling held by a comment, in a file whose second half is a record of
+    # comment-held couplings failing. Round 6 found one of those; leaving the
+    # shape in place invites the next. main() now owns the read and the
+    # reporting, so removing or reordering either check cannot make an
+    # unreadable block go quiet.
+    all_blocks = [ThemeBlocks(path) for path in files]
+    block_errors = [err for blocks in all_blocks for err in blocks.errors]
+
+    failures = (check_parses() + check_shared_widget() + block_errors
+                + check_theme_parity(all_blocks)
+                + check_every_colour_themes(all_blocks)
+                + check_board_harness_count())
 
     if failures:
         print("docs artifact test: FAILED")

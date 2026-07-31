@@ -188,6 +188,20 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
                                      '--sep: ";";\n    --sans: system-ui, sans-serif;'))},
      False, ""),
 
+    # GOOD_CSS had no comments, so extracting the shared CSS scanner broke
+    # comment handling and this file said nothing - the two real documents
+    # caught it. A meta-test whose fixtures are simpler than the real input
+    # tests the fixtures.
+    ("a comment before the first declaration does not eat it",
+     {"a.html": doc(GOOD_CSS.replace("  :root {",
+                                     "  :root {\n    /* a note; with a semicolon and a { brace */"))},
+     False, ""),
+
+    ("a comment between declarations does not eat the next one",
+     {"a.html": doc(GOOD_CSS.replace("--ink: #E7E9ED;",
+                                     "--ink: #E7E9ED;\n    /* mid-block */"))},
+     False, ""),
+
     ("a reformatted :root with no indent is still found",
      {"a.html": doc(GOOD_CSS.replace("\n  :root {", "\n:root{"))}, False, ""),
 
@@ -225,8 +239,37 @@ def run_against(files: dict[str, str]) -> tuple[int, str]:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def check_theme_invariant_exemption() -> list[str]:
+    """The exemption path must actually exempt.
+
+    THEME_INVARIANT ships empty with a paragraph of justification and no
+    exercised branch. An exemption nobody has ever taken is a promise, and the
+    first person to need it would find out at that moment whether it works.
+    """
+    files = {"a.html": doc(GOOD_CSS.replace(
+        "--ink: #E7E9ED;\n    --sans",
+        "--ink: #E7E9ED;\n    --brand: #A855F7;\n    --sans"))}
+
+    code, _ = run_against(files)
+    if code == 0:
+        return ["an unthemed colour passed even before the exemption was "
+                "applied; this case proves nothing as written"]
+
+    original = A.THEME_INVARIANT
+    A.THEME_INVARIANT = {"--brand"}
+    try:
+        code, output = run_against(files)
+    finally:
+        A.THEME_INVARIANT = original
+    if code != 0:
+        return [f"THEME_INVARIANT did not suppress the finding for an exempted "
+                f"token; the exemption path does not work. output: "
+                f"{output.strip()[:200]}"]
+    return []
+
+
 def main() -> int:
-    failures = []
+    failures = check_theme_invariant_exemption()
     for name, files, expect_failure, needle in CASES:
         code, output = run_against(files)
         failed = code != 0
