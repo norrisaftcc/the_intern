@@ -51,6 +51,12 @@
       --inert:  #7B818B;
     }
   }
+  /* INTENTIONALLY INERT AS A LOCAL FILE, not unfinished. Nothing in this
+     document sets data-theme; the artifact host stamps it on the root element
+     when a viewer flips their theme toggle, and it has to win over the media
+     query in both directions. Opened from disk, prefers-color-scheme alone
+     decides and these two blocks never match. Leaving the hook is deliberate
+     so the same file works in both places. */
   :root[data-theme="light"] {
     --ground:  #EFEEE9;
     --surface: #FFFFFF;
@@ -508,7 +514,7 @@
 
     <div class="chain">
       <div class="link ok">
-        <h3><span class="mark f m-ok"></span>ai-code-review.yml</h3>
+        <h3><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>ai-code-review.yml</h3>
         <div class="was">ran for ~1 year · produced 0 reviews · reported success every time</div>
         <p>A <code>// "Error: Failed to get AI review"</code> fallback turned every API error into a success
           string, and the step exited 0. Repaired across #17 and follow-ups: real
@@ -517,7 +523,7 @@
       </div>
 
       <div class="link warn">
-        <h3><span class="mark f m-warn"></span>deploy.yml</h3>
+        <h3><span class="mark f m-warn" role="img" aria-label="verified by a run"></span>deploy.yml</h3>
         <div class="was">7 runs on main · 7 failures · 0 successes</div>
         <p>Failed on first contact every time: <code>docker build</code> against a <code>Dockerfile</code> that
           has never existed in this repository. The step behind it — never once executed — was two
@@ -527,7 +533,7 @@
       </div>
 
       <div class="link">
-        <h3><span class="mark m-inert"></span>agent_tier_tests.yml</h3>
+        <h3><span class="mark m-inert" role="img" aria-label="asserted only"></span>agent_tier_tests.yml</h3>
         <div class="was">0 runs · never once eligible to trigger</div>
         <p>Its <code>paths:</code> filter named three files at the repository root; all three live in
           <code>projects/algocratic-futures/backend/</code>. Filters resolve from the root, so it matched
@@ -558,23 +564,23 @@
       it exists as a list rather than a moral.</p>
 
     <div class="legend">
-      <span><span class="mark f m-ok"></span>caught, and by whom</span>
-      <span><span class="mark m-warn"></span>open</span>
+      <span><span class="mark f m-ok" aria-hidden="true"></span>caught, and by whom</span>
+      <span><span class="mark m-warn" aria-hidden="true"></span>open</span>
     </div>
 
     <div class="scroll">
       <table>
         <thead><tr><th>Where</th><th>The shape</th><th>Found by</th></tr></thead>
         <tbody>
-          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok"></span><code>// "Error: …"</code> turned any API error into a success string</td><td>Kevin, from the archive</td></tr>
-          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok"></span>skip-and-pass on an empty diff</td><td>review</td></tr>
-          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok"></span><code>join</code> on an empty list returns <code>""</code>, which <code>jq -e</code> treats as success — nearly disarmed the guard</td><td>me, verifying</td></tr>
-          <tr><td class="nm">kevin-forensics-only.sh</td><td><span class="mark f m-ok"></span><code>command -v jq || allow</code> — the enforcement failed <em>open</em> when jq was missing</td><td>review</td></tr>
-          <tr><td class="nm">kevin_scope_test.py</td><td><span class="mark f m-ok"></span>a check whose every branch returned no findings — it could not fail</td><td>review</td></tr>
-          <tr><td class="nm">kevin-forensics-only.py</td><td><span class="mark f m-ok"></span><code>.get()</code> before <code>isinstance</code> — the check was unreachable; it failed closed by accident</td><td>review</td></tr>
-          <tr><td class="nm">stray_workflow_test.py</td><td><span class="mark f m-ok"></span>the test held its own copy of the pathspec, so it passed while the guard drifted</td><td>me, verifying</td></tr>
-          <tr><td class="nm">my own ruff check</td><td><span class="mark f m-ok"></span>a <code>||</code> fallback printed "0 errors" when ruff was not installed</td><td>me — disclosed, not reported as a number</td></tr>
-          <tr><td class="nm">#40's yaml.safe_load</td><td><span class="mark m-warn"></span>syntax-only verification of files whose defect was semantic — valid YAML, wrong about the world</td><td>ai-review, on #40 → #41</td></tr>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>// "Error: …"</code> turned any API error into a success string</td><td>Kevin, from the archive</td></tr>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>skip-and-pass on an empty diff</td><td>review</td></tr>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>join</code> on an empty list returns <code>""</code>, which <code>jq -e</code> treats as success — nearly disarmed the guard</td><td>me, verifying</td></tr>
+          <tr><td class="nm">kevin-forensics-only.sh</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>command -v jq || allow</code> — the enforcement failed <em>open</em> when jq was missing</td><td>review</td></tr>
+          <tr><td class="nm">kevin_scope_test.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>a check whose every branch returned no findings — it could not fail</td><td>review</td></tr>
+          <tr><td class="nm">kevin-forensics-only.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>.get()</code> before <code>isinstance</code> — the check was unreachable; it failed closed by accident</td><td>review</td></tr>
+          <tr><td class="nm">stray_workflow_test.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>the test held its own copy of the pathspec, so it passed while the guard drifted</td><td>me, verifying</td></tr>
+          <tr><td class="nm">my own ruff check</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>a <code>||</code> fallback printed "0 errors" when ruff was not installed</td><td>me — disclosed, not reported as a number</td></tr>
+          <tr><td class="nm">#40's yaml.safe_load</td><td><span class="mark m-warn" role="img" aria-label="asserted only"></span>syntax-only verification of files whose defect was semantic — valid YAML, wrong about the world</td><td>ai-review, on #40 → #41</td></tr>
         </tbody>
       </table>
     </div>
@@ -606,13 +612,13 @@
       <table>
         <thead><tr><th>Agent</th><th>Job</th><th>Tools</th><th>Worked on</th></tr></thead>
         <tbody>
-          <tr><td class="nm"><span class="mark f m-ok"></span>kevin</td><td>Forensic reconstruction. Never judges, never gates, never repairs.</td><td class="num">Read Grep Glob Bash Write</td><td>found the dead review workflow, the unfired one, and the live instrumentation leaking file contents to <code>/tmp</code> — unprompted, in the middle of his own probe</td></tr>
-          <tr><td class="nm"><span class="mark f m-ok"></span>shodann</td><td>Grades the derivative — movement, never absolute position.</td><td class="num">Read Grep Glob Bash</td><td>shared base across two repositories, byte-identical; her calibration brief is now in <code>docs/csi/shodann/</code></td></tr>
-          <tr><td class="nm"><span class="mark f m-ok"></span>wyatt</td><td>git and GitHub; branch and merge recovery.</td><td class="num">Read Grep Glob Edit Bash</td><td>drafted the 5b workflow repair</td></tr>
-          <tr><td class="nm"><span class="mark m-inert"></span>kai</td><td>Live Python and web cases, with a caller present.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
-          <tr><td class="nm"><span class="mark m-inert"></span>liza</td><td>UI, render behaviour, diagrams, schema.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
-          <tr><td class="nm"><span class="mark m-inert"></span>vita</td><td>Intro Python tutoring. No Write tool — structurally cannot hand over the answer.</td><td class="num">Read Grep Glob</td><td>case file green; no dispatch this stretch</td></tr>
-          <tr><td class="nm"><span class="mark m-inert"></span>vi</td><td>Songwriting and lyrics. Runs on Pi.ai; says so in her Provenance section.</td><td class="num">Read Write WebSearch</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>kevin</td><td>Forensic reconstruction. Never judges, never gates, never repairs.</td><td class="num">Read Grep Glob Bash Write</td><td>found the dead review workflow, the unfired one, and the live instrumentation leaking file contents to <code>/tmp</code> — unprompted, in the middle of his own probe</td></tr>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>shodann</td><td>Grades the derivative — movement, never absolute position.</td><td class="num">Read Grep Glob Bash</td><td>shared base across two repositories, byte-identical; her calibration brief is now in <code>docs/csi/shodann/</code></td></tr>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>wyatt</td><td>git and GitHub; branch and merge recovery.</td><td class="num">Read Grep Glob Edit Bash</td><td>drafted the 5b workflow repair</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>kai</td><td>Live Python and web cases, with a caller present.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>liza</td><td>UI, render behaviour, diagrams, schema.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>vita</td><td>Intro Python tutoring. No Write tool — structurally cannot hand over the answer.</td><td class="num">Read Grep Glob</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>vi</td><td>Songwriting and lyrics. Runs on Pi.ai; says so in her Provenance section.</td><td class="num">Read Write WebSearch</td><td>case file green; no dispatch this stretch</td></tr>
         </tbody>
       </table>
     </div>
@@ -689,7 +695,7 @@
 </div>
 
 <script>
-  // Shared tab widget. Byte-identical to the one in
+  // Shared tab widget. Byte-identical between docs/big-board.html and
   // docs/csi/shodann/calibration-brief.html on purpose: two copies of the
   // same widget had drifted into different arrow-key implementations, which
   // is how the accessible one and the not-quite one end up side by side.

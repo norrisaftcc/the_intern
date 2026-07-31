@@ -79,6 +79,12 @@
     --violet:   #A472D0;
   }
 
+  /* INTENTIONALLY INERT AS A LOCAL FILE, not unfinished. Nothing in this
+     document sets data-theme; the artifact host stamps it on the root element
+     when a viewer flips their theme toggle, and it has to win over the media
+     query in both directions. Opened from disk, prefers-color-scheme alone
+     decides and these two blocks never match. Leaving the hook is deliberate
+     so the same file works in both places. */
   :root[data-theme="light"] {
     --ground:   #F1F0F5;
     --surface:  #FFFFFF;
@@ -1048,7 +1054,7 @@
 </div>
 
 <script>
-  // Shared tab widget. Byte-identical to the one in
+  // Shared tab widget. Byte-identical between docs/big-board.html and
   // docs/csi/shodann/calibration-brief.html on purpose: two copies of the
   // same widget had drifted into different arrow-key implementations, which
   // is how the accessible one and the not-quite one end up side by side.
