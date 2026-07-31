@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Big Board — the_intern</title>
+
+<style>
+  :root {
+    /* Ink ground, verdigris accent — evidence-room fixtures, not neon.
+       Semantic colours are enamel and deliberately not the accent. */
+    --accent:    #4E9A8F;
+    --accent-dk: #3B7B72;
+
+    --ok:     #3F8F63;
+    --warn:   #B58128;
+    --bad:    #B4482F;
+    --inert:  #737A85;
+
+    --ground:  #0E1116;
+    --surface: #161A21;
+    --raised:  #1D222B;
+    --line:    #2B313C;
+    --line-2:  #3A4250;
+    --ink:     #E7E9ED;
+    --ink-2:   #A6ADBA;
+    --ink-3:   #6E7683;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --w: 1180px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground:  #EFEEE9;
+      --surface: #FFFFFF;
+      --raised:  #E7E5DE;
+      --line:    #D5D2C9;
+      --line-2:  #BCB8AC;
+      --ink:     #15181D;
+      --ink-2:   #4C525C;
+      --ink-3:   #7B8290;
+      --accent:    #2F7B71;
+      --accent-dk: #24625A;
+      --ok:     #2F7A50;
+      --warn:   #97681A;
+      --bad:    #9C3A23;
+      --inert:  #7B818B;
+    }
+  }
+  /* INTENTIONALLY INERT AS A LOCAL FILE, not unfinished. Nothing in this
+     document sets data-theme; the artifact host stamps it on the root element
+     when a viewer flips their theme toggle, and it has to win over the media
+     query in both directions. Opened from disk, prefers-color-scheme alone
+     decides and these two blocks never match. Leaving the hook is deliberate
+     so the same file works in both places. */
+  :root[data-theme="light"] {
+    --ground:  #EFEEE9;
+    --surface: #FFFFFF;
+    --raised:  #E7E5DE;
+    --line:    #D5D2C9;
+    --line-2:  #BCB8AC;
+    --ink:     #15181D;
+    --ink-2:   #4C525C;
+    --ink-3:   #7B8290;
+    --accent:    #2F7B71;
+    --accent-dk: #24625A;
+    --ok:     #2F7A50;
+    --warn:   #97681A;
+    --bad:    #9C3A23;
+    --inert:  #7B818B;
+  }
+  :root[data-theme="dark"] {
+    --ground:  #0E1116;
+    --surface: #161A21;
+    --raised:  #1D222B;
+    --line:    #2B313C;
+    --line-2:  #3A4250;
+    --ink:     #E7E9ED;
+    --ink-2:   #A6ADBA;
+    --ink-3:   #6E7683;
+    --accent:    #4E9A8F;
+    --accent-dk: #3B7B72;
+    --ok:     #3F8F63;
+    --warn:   #B58128;
+    --bad:    #B4482F;
+    --inert:  #737A85;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--w); margin: 0 auto; padding: 0 22px 80px; }
+
+  /* ---------- masthead ---------- */
+  .mast {
+    border-bottom: 1px solid var(--line);
+    padding: 34px 0 0;
+    margin-bottom: 0;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: baseline;
+  }
+  .eyebrow b { color: var(--accent); font-weight: 600; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -.015em;
+    margin: 12px 0 10px;
+    text-wrap: balance;
+  }
+  .dek {
+    color: var(--ink-2);
+    max-width: 62ch;
+    margin: 0 0 26px;
+    font-size: 16px;
+  }
+  .dek strong { color: var(--ink); font-weight: 600; }
+
+  /* Reads at the top rather than only in the footer. A page that calls itself
+     a board and quietly stops being true is the defect this page is about. */
+  .stale {
+    margin: 0 0 18px;
+    padding: 11px 14px;
+    max-width: 68ch;
+    background: var(--raised);
+    border-left: 3px solid var(--warn);
+    border-radius: 0 4px 4px 0;
+    color: var(--ink-2);
+    font-size: 13.5px;
+  }
+  .stale strong { color: var(--warn); font-weight: 600; }
+  .stale code { font-family: var(--mono); font-size: .89em; color: var(--accent); }
+
+  /* ---------- tabs ---------- */
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    margin-bottom: -1px;
+  }
+  .tab {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 10px 15px 11px;
+    cursor: pointer;
+    border-radius: 3px 3px 0 0;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .tab[aria-selected="true"] {
+    background: var(--surface);
+    border-color: var(--line);
+    color: var(--ink);
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+  .panel {
+    border-top: 1px solid var(--line);
+    padding-top: 30px;
+  }
+  .panel[hidden] { display: none; }
+
+  /* ---------- stat strip ---------- */
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 34px;
+  }
+  .stat { background: var(--surface); padding: 15px 16px 14px; }
+  .stat .n {
+    font-family: var(--mono);
+    font-size: 27px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+  }
+  .stat .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-top: 5px;
+  }
+  .stat .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+  .n.ok { color: var(--ok); } .n.warn { color: var(--warn); }
+  .n.bad { color: var(--bad); } .n.acc { color: var(--accent); }
+
+  /* ---------- section ---------- */
+  h2 {
+    font-family: var(--serif);
+    font-size: 23px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 42px 0 6px;
+    text-wrap: balance;
+  }
+  h2:first-of-type { margin-top: 0; }
+  .note { color: var(--ink-2); max-width: 68ch; margin: 0 0 20px; font-size: 14.5px; }
+  .note code, td code, li code { font-family: var(--mono); font-size: .89em; color: var(--accent); }
+
+  /* ---------- lanes ---------- */
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+    gap: 16px;
+  }
+  .lane {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .lane > header {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .lane > header .ct {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+  }
+  .lane.ok    > header { box-shadow: inset 3px 0 0 var(--ok); }
+  .lane.warn  > header { box-shadow: inset 3px 0 0 var(--warn); }
+  .lane.acc   > header { box-shadow: inset 3px 0 0 var(--accent); }
+  .lane.inert > header { box-shadow: inset 3px 0 0 var(--inert); }
+  .lane ul { list-style: none; margin: 0; padding: 6px 0; }
+  .lane li {
+    padding: 8px 14px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 3px 9px;
+    align-items: baseline;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  }
+  .lane li:last-child { border-bottom: none; }
+  .id {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .lane li .t { font-size: 13.5px; }
+  .lane li .m {
+    grid-column: 2;
+    font-size: 12px;
+    color: var(--ink-3);
+    font-family: var(--mono);
+  }
+
+  /* ---------- table ---------- */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--raised);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.nm { font-family: var(--mono); color: var(--ink); white-space: nowrap; }
+
+  /* ---------- the mark: filled = verified by a run, hollow = asserted ---------- */
+  .mark {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    vertical-align: -1px;
+    margin-right: 7px;
+  }
+  .mark.f { background: currentColor; }
+  .m-ok { color: var(--ok); } .m-warn { color: var(--warn); }
+  .m-bad { color: var(--bad); } .m-inert { color: var(--inert); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-2);
+    background: var(--raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 11px 14px;
+    margin-bottom: 22px;
+  }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .p-ok { color: var(--ok); } .p-warn { color: var(--warn); }
+  .p-bad { color: var(--bad); } .p-inert { color: var(--inert); } .p-acc { color: var(--accent); }
+
+  /* ---------- chain ---------- */
+  .chain { display: grid; gap: 14px; }
+  .link {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line-2);
+    border-radius: 0 4px 4px 0;
+    padding: 15px 18px;
+  }
+  .link.ok  { border-left-color: var(--ok); }
+  .link.warn{ border-left-color: var(--warn); }
+  .link h3 {
+    font-family: var(--mono);
+    font-size: 14px;
+    margin: 0 0 3px;
+    font-weight: 600;
+  }
+  .link .was { font-family: var(--mono); font-size: 12px; color: var(--bad); margin-bottom: 8px; }
+  .link p { margin: 0; color: var(--ink-2); font-size: 13.5px; max-width: 74ch; }
+
+  blockquote {
+    margin: 0 0 20px;
+    padding: 13px 18px;
+    background: var(--raised);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    color: var(--ink-2);
+    font-size: 14px;
+    max-width: 74ch;
+  }
+  blockquote strong { color: var(--ink); }
+
+  .foot {
+    margin-top: 46px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+  }
+
+  ul.plain { padding-left: 20px; color: var(--ink-2); font-size: 14px; max-width: 72ch; }
+  ul.plain li { margin-bottom: 7px; }
+  ul.plain strong { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div class="eyebrow">
+      <span>norrisaftcc / the_intern</span>
+      <span>·</span>
+      <span>read at <b>60e1633</b></span>
+      <span>·</span>
+      <span>31 Jul 2026 · snapshot</span>
+    </div>
+    <h1>The Big Board</h1>
+    <p class="stale" role="note">
+      <strong>Static snapshot, not a live board.</strong> Every number here was read off
+      <code>a438536</code> and the API at the time above. It does not update, and it goes wrong on
+      the next merge rather than going blank. Check the issue list before trusting any count on
+      this page.
+    </p>
+    <p class="dek">Two days of work on a repository whose checks reported success without checking.
+      Six harnesses now run in CI where none ran before, and the last always-red job on
+      <code>main</code> has stopped lying. <strong>Filled marks are verified by a run; hollow marks are
+      asserted only.</strong></p>
+
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" aria-selected="true"  aria-controls="p-board" id="t-board">Board</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-chain" id="t-chain">The chain</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-ledger" id="t-ledger">Defect ledger</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-roster" id="t-roster">Roster</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="p-open" id="t-open">Open work</button>
+    </div>
+  </div>
+
+  <!-- ============ BOARD ============ -->
+  <section class="panel" id="p-board" role="tabpanel" aria-labelledby="t-board">
+    <div class="strip">
+      <div class="stat"><div class="n ok">6</div><div class="k">PRs merged</div><div class="sub">30–31 Jul</div></div>
+      <div class="stat" data-harness-count="8"><div class="n acc">8</div><div class="k">harnesses in CI</div><div class="sub">165 checks · 0 before</div></div>
+      <div class="stat"><div class="n ok">1</div><div class="k">in flight</div><div class="sub">#40 · all green</div></div>
+      <div class="stat"><div class="n warn">8</div><div class="k">open, this work</div><div class="sub">+12 older backlog</div></div>
+      <div class="stat"><div class="n bad">3</div><div class="k">dead workflows</div><div class="sub">all three resolved</div></div>
+    </div>
+
+    <h2>Lanes</h2>
+    <p class="note">Everything opened, merged, or filed in this stretch. The older project backlog
+      (#5, #9–#21) is untouched and sits outside this board.</p>
+
+    <div class="lanes">
+      <div class="lane ok">
+        <header><span>Shipped</span><span class="ct">6</span></header>
+        <ul>
+          <li><span class="id">#23</span><span class="t">CSI personas as agents and skills</span><span class="m">30 Jul 20:29</span></li>
+          <li><span class="id">#24</span><span class="t">ASSAY dependency; case readers stop raising</span><span class="m">30 Jul 21:25</span></li>
+          <li><span class="id">#25</span><span class="t">Kevin as the roster's control</span><span class="m">31 Jul 01:17</span></li>
+          <li><span class="id">#30</span><span class="t">SHODANN shared base + voice skill</span><span class="m">31 Jul 01:59</span></li>
+          <li><span class="id">#33</span><span class="t">Delete the duplicate ai-code-review.yml</span><span class="m">31 Jul 20:11</span></li>
+          <li><span class="id">#35</span><span class="t">Kevin's write scope enforced by hook</span><span class="m">31 Jul 22:05</span></li>
+        </ul>
+      </div>
+
+      <div class="lane acc">
+        <header><span>In flight</span><span class="ct">1</span></header>
+        <ul>
+          <li><span class="id">#40</span><span class="t">Delete a workflow that never ran; stub a deploy that never deployed</span>
+            <span class="m">draft · 6/6 green · 2 review rounds answered</span></li>
+        </ul>
+      </div>
+
+      <div class="lane warn">
+        <header><span>Open — filed here</span><span class="ct">8</span></header>
+        <ul>
+          <li><span class="id">#41</span><span class="t">Lint <code>paths:</code> filters against the filesystem</span><span class="m">the YAML was valid the whole time</span></li>
+          <li><span class="id">#39</span><span class="t">Three workflows, one commit, none worked</span><span class="m">2 of 3 closed by #40</span></li>
+          <li><span class="id">#38</span><span class="t">ai-review reads a frozen PR body; token ceiling</span><span class="m">caused one false finding</span></li>
+          <li><span class="id">#37</span><span class="t">no-repair detection has a residual gap</span><span class="m">"Select on type." passes</span></li>
+          <li><span class="id">#36</span><span class="t">Kevin's write scope: two Bash bypasses</span><span class="m">stated, not sealed</span></li>
+          <li><span class="id">#34</span><span class="t">ai-review: one bounded retry on 429/5xx</span><span class="m">small</span></li>
+          <li><span class="id">#28</span><span class="t">Model retirement will land on a contributor's PR</span><span class="m">recurring spend decision</span></li>
+          <li><span class="id">#32</span><span class="t">Rename this repo's SHODANN to ann-sho</span><span class="m">parked — needs your go-ahead</span></li>
+        </ul>
+      </div>
+
+      <div class="lane inert">
+        <header><span>Parked</span><span class="ct">2</span></header>
+        <ul>
+          <li><span class="id">—</span><span class="t">PRISM bands vs Cognitive Clearance vocab note</span><span class="m">doesn't exercise the gate</span></li>
+          <li><span class="id">—</span><span class="t">algorithm-shodann#64 — Copilot's linx retarget</span><span class="m">not ours</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>CI, right now</h2>
+    <p class="note">Every check on <code>#40</code> at <code>a438536</code>. The row that matters is the last one:
+      <code>deploy</code> reports <strong>skipped</strong>, not <strong>failure</strong> — the first non-failing
+      <code>deploy</code> on this repository since 2025-08-20.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>What it covers</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">checks (3.9)</td><td><span class="pill p-ok">success</span></td><td>floor · lint · examples · extraction · stray · Kevin's write scope</td></tr>
+          <tr><td class="nm">checks (3.11)</td><td><span class="pill p-ok">success</span></td><td>same matrix leg</td></tr>
+          <tr><td class="nm">test (3.9)</td><td><span class="pill p-ok">success</span></td><td>backend gate · clearance integrity</td></tr>
+          <tr><td class="nm">test (3.11)</td><td><span class="pill p-ok">success</span></td><td>same</td></tr>
+          <tr><td class="nm">ai-review</td><td><span class="pill p-ok">success</span></td><td>posted a complete review; approved</td></tr>
+          <tr><td class="nm">deploy</td><td><span class="pill p-inert">skipped</span></td><td>stubbed — <code>if: false</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>The harnesses</h2>
+    <p class="note">All eight were written before this stretch or during it. None of them ran in CI until
+      <code>checks.yml</code> existed. A check that exists and never executes is the thing this whole
+      run of work is about.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Harness</th><th class="num">Cases</th><th>Pins down</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">floor_test.py</td><td class="num">10</td><td>every persona states Audience, Scope, Format, Path</td></tr>
+          <tr><td class="nm">lint_test.py</td><td class="num">52</td><td>12 regex-parser · 10 shared-base · 30 no-repair fixtures</td></tr>
+          <tr><td class="nm">examples_test.py</td><td class="num">23</td><td>worked examples still satisfy their own case files</td></tr>
+          <tr><td class="nm">extraction_test.py</td><td class="num">6</td><td>API response shapes, including the ones that used to pass silently</td></tr>
+          <tr><td class="nm">stray_workflow_test.py</td><td class="num">7</td><td>no workflow reappears in a subdirectory</td></tr>
+          <tr><td class="nm">kevin_scope_test.py</td><td class="num">19</td><td>Kevin's write scope, fails closed, wiring covered</td></tr>
+          <tr><td class="nm">artifact_test.py</td><td class="num">2</td><td>the documents in <code>docs/</code> — parse, one shared widget, themes agree by both routes</td></tr>
+          <tr><td class="nm">harness_test.py</td><td class="num">25</td><td>the harness above, pinned by the three defects it has already shipped</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ CHAIN ============ -->
+  <section class="panel" id="p-chain" role="tabpanel" aria-labelledby="t-chain" hidden>
+    <h2>One commit, three workflows, eleven months</h2>
+    <blockquote><strong>166102f</strong> · 2025-08-20 · <em>"Fix GitHub infrastructure compliance violations"</em><br>
+      Moved three workflow files out of subdirectories into <code>.github/workflows/</code> where Actions
+      would detect them. Detection was the stated problem and detection got fixed. Whether any of
+      them then <em>worked</em> was not checked.</blockquote>
+
+    <div class="chain">
+      <div class="link ok">
+        <h3><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>ai-code-review.yml</h3>
+        <div class="was">ran for ~1 year · produced 0 reviews · reported success every time</div>
+        <p>A <code>// "Error: Failed to get AI review"</code> fallback turned every API error into a success
+          string, and the step exited 0. Repaired across #17 and follow-ups: real
+          <code>anthropic-version</code> header, transport failures caught, three-dot diff, truncation
+          banner. Now posts complete reviews — including two on #40 that found real things.</p>
+      </div>
+
+      <div class="link warn">
+        <h3><span class="mark f m-warn" role="img" aria-label="verified by a run"></span>deploy.yml</h3>
+        <div class="was">7 runs on main · 7 failures · 0 successes</div>
+        <p>Failed on first contact every time: <code>docker build</code> against a <code>Dockerfile</code> that
+          has never existed in this repository. The step behind it — never once executed — was two
+          echoes, one of them <code>echo "Deployment would happen here"</code>. It could not build, and
+          would have deployed nothing if it had. Stubbed in #40 with the original steps preserved
+          unedited as evidence.</p>
+      </div>
+
+      <div class="link">
+        <h3><span class="mark m-inert" role="img" aria-label="asserted only"></span>agent_tier_tests.yml</h3>
+        <div class="was">0 runs · never once eligible to trigger</div>
+        <p>Its <code>paths:</code> filter named three files at the repository root; all three live in
+          <code>projects/algocratic-futures/backend/</code>. Filters resolve from the root, so it matched
+          nothing. Confirmed <code>total_count: 0</code> against the API before deleting. Kevin found this
+          as Finding 4 on 2026-07-30 — a day before it was acted on.</p>
+      </div>
+    </div>
+
+    <h2>Why the quiet one lasted longest</h2>
+    <p class="note">A workflow that <em>fails</em> is visible — someone eventually asks about the red X.
+      A workflow that <em>never fires</em> produces a clean checks list, and on the pull request page
+      that is indistinguishable from one that ran and passed. Silence and success render identically.</p>
+    <p class="note">And the loud one had a cost of its own. <code>main</code> carried a failing check
+      continuously for eleven months, which teaches every reader that red on <code>main</code> means
+      nothing — the exact condition under which a review workflow can report success for a year with
+      nobody looking. The broken deploy did not cause that. It removed the signal that would have
+      caught it.</p>
+    <p class="note">Worth being straight about what turning it green buys: <code>main</code> has
+      <code>"protected": false</code>, so there are no required status checks and no gate opens. The
+      entire value is the human signal — that the next red X will mean something.</p>
+  </section>
+
+  <!-- ============ LEDGER ============ -->
+  <section class="panel" id="p-ledger" role="tabpanel" aria-labelledby="t-ledger" hidden>
+    <h2>A check that reports success without checking</h2>
+    <p class="note">The same defect, nine times, in nine different materials. Four of them were written
+      <em>during</em> the repair of the others — which is the honest part of this ledger and the reason
+      it exists as a list rather than a moral.</p>
+
+    <div class="legend">
+      <span><span class="mark f m-ok" aria-hidden="true"></span>caught, and by whom</span>
+      <span><span class="mark m-warn" aria-hidden="true"></span>open</span>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Where</th><th>The shape</th><th>Found by</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>// "Error: …"</code> turned any API error into a success string</td><td>Kevin, from the archive</td></tr>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>skip-and-pass on an empty diff</td><td>review</td></tr>
+          <tr><td class="nm">ai-code-review.yml</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>join</code> on an empty list returns <code>""</code>, which <code>jq -e</code> treats as success — nearly disarmed the guard</td><td>me, verifying</td></tr>
+          <tr><td class="nm">kevin-forensics-only.sh</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>command -v jq || allow</code> — the enforcement failed <em>open</em> when jq was missing</td><td>review</td></tr>
+          <tr><td class="nm">kevin_scope_test.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>a check whose every branch returned no findings — it could not fail</td><td>review</td></tr>
+          <tr><td class="nm">kevin-forensics-only.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span><code>.get()</code> before <code>isinstance</code> — the check was unreachable; it failed closed by accident</td><td>review</td></tr>
+          <tr><td class="nm">stray_workflow_test.py</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>the test held its own copy of the pathspec, so it passed while the guard drifted</td><td>me, verifying</td></tr>
+          <tr><td class="nm">my own ruff check</td><td><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>a <code>||</code> fallback printed "0 errors" when ruff was not installed</td><td>me — disclosed, not reported as a number</td></tr>
+          <tr><td class="nm">#40's yaml.safe_load</td><td><span class="mark m-warn" role="img" aria-label="asserted only"></span>syntax-only verification of files whose defect was semantic — valid YAML, wrong about the world</td><td>ai-review, on #40 → #41</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Two that are the same shape and still open</h2>
+    <ul class="plain">
+      <li><strong>#37 — the no-repair case.</strong> Thirty fixtures of hand-rolled NLP in regex. It
+        catches every evasion anyone has thought of and misses <code>"Select on type."</code> — a bare
+        imperative with no comparison. Written into the case file's own <code>why</code> field, so a
+        green run does not read as proof he refused.</li>
+      <li><strong>#36 — Kevin's write scope.</strong> The hook closes the <code>Write</code> path. He holds
+        <code>Bash</code>, so <code>echo x &gt; path</code> and a symlink he creates himself both walk
+        past it. Closing either means taking away the tool he needs to read git history — the reason
+        he exists. Stated in <code>ROSTER.md</code> rather than argued away.</li>
+    </ul>
+
+    <blockquote>The pattern worth keeping: every one of these was recorded where it happened — in a
+      commit message, an issue, or a comment in the file — rather than quietly fixed. A ledger that
+      only lists other people's defects is the same failure one level up.</blockquote>
+  </section>
+
+  <!-- ============ ROSTER ============ -->
+  <section class="panel" id="p-roster" role="tabpanel" aria-labelledby="t-roster" hidden>
+    <h2>Seven agents, three skills</h2>
+    <p class="note">Reconstructed from <code>artifacts/</code> into contracts this repository can dispatch.
+      Filled mark = this agent has done real work in this repository, not only passed its case file.</p>
+    <p class="stale" role="note"><strong>These marks are asserted, not verified.</strong> The harness that
+      checks this page reads structure only — it never reads prose, deliberately, so that
+      <code>ROSTER.md</code> is not swept into persona scoring. So the tool lists, the "worked on" column
+      and every issue number below are hand-written and have no enforcement. They go stale when an agent's
+      tools change. The board's own harness count is the one number here derived from the repository rather
+      than typed; everything else in this panel is a claim.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Agent</th><th>Job</th><th>Tools</th><th>Worked on</th></tr></thead>
+        <tbody>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>kevin</td><td>Forensic reconstruction. Never judges, never gates, never repairs.</td><td class="num">Read Grep Glob Bash Write</td><td>found the dead review workflow, the unfired one, and the live instrumentation leaking file contents to <code>/tmp</code> — unprompted, in the middle of his own probe</td></tr>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>shodann</td><td>Grades the derivative — movement, never absolute position.</td><td class="num">Read Grep Glob Bash</td><td>shared base across two repositories, byte-identical; her calibration brief is now in <code>docs/csi/shodann/</code></td></tr>
+          <tr><td class="nm"><span class="mark f m-ok" role="img" aria-label="verified by a run"></span>wyatt</td><td>git and GitHub; branch and merge recovery.</td><td class="num">Read Grep Glob Edit Bash</td><td>drafted the 5b workflow repair</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>kai</td><td>Live Python and web cases, with a caller present.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>liza</td><td>UI, render behaviour, diagrams, schema.</td><td class="num">Read Grep Glob Edit Write Bash</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>vita</td><td>Intro Python tutoring. No Write tool — structurally cannot hand over the answer.</td><td class="num">Read Grep Glob</td><td>case file green; no dispatch this stretch</td></tr>
+          <tr><td class="nm"><span class="mark m-inert" role="img" aria-label="asserted only"></span>vi</td><td>Songwriting and lyrics. Runs on Pi.ai; says so in her Provenance section.</td><td class="num">Read Write WebSearch</td><td>case file green; no dispatch this stretch</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Two structural facts worth keeping</h2>
+    <ul class="plain">
+      <li><strong>Limits are structural where they can be.</strong> VITA has no Write tool, so "never write
+        a student's code" is a fact about the tool list rather than a promise in a prompt. SHODANN has
+        no Write tool for the same reason. Kevin was the exception — his path limit was one sentence he
+        could be talked out of — and #35 moved it into a <code>PreToolUse</code> hook that fails closed.</li>
+      <li><strong>A passing case file is a smoke test for drift, not a correctness proof.</strong> It matches
+        regexes against generated prose. A persona that passes has not been shown to be right about
+        anything — only that its reply still carries the markers its contract calls for. <code>floor_test.py</code>
+        prints that on every scoring run.</li>
+    </ul>
+
+    <h2>Velocity, not position</h2>
+    <p class="note">The idea arrived independently in two places that did not know about each other:
+      <code>clearance.py</code>'s RED band, where a citizen <em>"cannot yet calibrate absolute position, so
+      speak only about movement,"</em> and <code>floor_test.py --ab</code>, which measures a persona's
+      <em>change</em> in voice because drift is invisible to absolute measurement by construction.
+      SHODANN grades the derivative; the harness does too.</p>
+  </section>
+
+  <!-- ============ OPEN ============ -->
+  <section class="panel" id="p-open" role="tabpanel" aria-labelledby="t-open" hidden>
+    <h2>What's actually next</h2>
+    <p class="note">Ordered by what I'd do first, not by number. Nothing here is blocked on anything
+      else except where noted.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th class="num">#</th><th>Item</th><th>Size</th><th>Why now / why not</th></tr></thead>
+        <tbody>
+          <tr><td class="num">40</td><td>Merge the stub-and-delete PR</td><td><span class="pill p-ok">ready</span></td><td>6/6 green, two review rounds answered, approved</td></tr>
+          <tr><td class="num">41</td><td>Lint <code>paths:</code> filters against the filesystem</td><td><span class="pill p-warn">medium</span></td><td>the highest-value one open — it machine-checks the exact defect that cost eleven months. Trap is written into the issue: GitHub's globs are not <code>fnmatch</code>, and approximating silently builds a checker that passes everything</td></tr>
+          <tr><td class="num">38</td><td>ai-review: live PR body + raise the token ceiling</td><td><span class="pill p-ok">small</span></td><td>one already caused a false finding on #35; the ceiling truncated a review mid-sentence</td></tr>
+          <tr><td class="num">34</td><td>One bounded retry on 429/5xx</td><td><span class="pill p-ok">small</span></td><td>cheap, no recurring cost</td></tr>
+          <tr><td class="num">39</td><td>Guard against re-enabling <code>deploy</code> without a Dockerfile</td><td><span class="pill p-warn">medium</span></td><td>the stub is a prose-held boundary — the shape this repo keeps finding</td></tr>
+          <tr><td class="num">37</td><td>Restructure no-repair around what Kevin must <em>produce</em></td><td><span class="pill p-warn">medium</span></td><td>adding vocabulary will not close it; the fixtures are regression coverage, not a solution</td></tr>
+          <tr><td class="num">36</td><td>Kevin's two Bash bypasses</td><td><span class="pill p-bad">hard</span></td><td>closing either means taking Bash away, which he needs to do his job. May be correct to leave documented</td></tr>
+          <tr><td class="num">28</td><td>Model canary</td><td><span class="pill p-warn">recurring</span></td><td>a spend decision, not a code decision — yours</td></tr>
+          <tr><td class="num">32</td><td>Rename this repo's SHODANN to <code>ann-sho</code></td><td><span class="pill p-inert">held</span></td><td>explicitly not to be actioned without a further go-ahead</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Waiting on you</h2>
+    <ul class="plain">
+      <li><strong>#40 merge.</strong> Green and approved.</li>
+      <li><strong>#32, the <code>ann-sho</code> rename.</strong> Held at your direction. The split it formalises —
+        each repository rediscovering its own SHODANN from commit history if it matters later — is
+        recorded and does not decay while it waits.</li>
+      <li><strong>#28, the model canary.</strong> Recurring API spend. Genuinely a call about money, not engineering.</li>
+      <li><strong>The deploy target.</strong> #39 stays open until someone says whether one exists. If the
+        answer is no, the stub gets deleted rather than revived — that is the cheaper outcome and
+        there is no evidence against it.</li>
+    </ul>
+
+    <h2>Older backlog, untouched</h2>
+    <p class="note">Twelve issues from 2025 — #5, #9, #10, #11, #14, #15, #16, #17, #18, #19, #20, #21 —
+      covering the Storm Drain MUD, Liza's personality core, and PocketFlow integration. None of them
+      were in scope for this work and none were touched. Listed so the count on this board is not
+      mistaken for the repository's whole open list.</p>
+  </section>
+
+  <div class="foot">
+    <span>Built from the live API and a green run, not from memory.</span>
+    <span>·</span>
+    <span>Counts read off <code>a438536</code>.</span>
+    <span>·</span>
+    <span>Marks: filled = verified by a run · hollow = asserted only.</span>
+  </div>
+</div>
+
+<script>
+  // Shared tab widget. Byte-identical between docs/big-board.html and
+  // docs/csi/shodann/calibration-brief.html on purpose: two copies of the
+  // same widget had drifted into different arrow-key implementations, which
+  // is how the accessible one and the not-quite one end up side by side.
+  // If a third document wants tabs, extract this rather than paste it again.
+  //
+  // Roving tabindex: exactly one tab is in the sequential tab order and the
+  // arrows move between them. Without it every tab is a separate Tab stop,
+  // which is legal but not what role="tablist" promises a screen reader.
+  // ASSUMES ONE TABLIST PER DOCUMENT. The selector is document-wide, so two
+  // independent tab groups on one page would share an arrow-key ring and
+  // navigate into each other. True of both documents today. A page that needs
+  // two must scope this to a container first - noted here rather than left for
+  // the next person to find by pressing an arrow key.
+  (function () {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+    if (!tabs.length) return;
+
+    function select(tab, moveFocus) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        // Guarded: a tab whose aria-controls does not resolve would otherwise
+        // throw here and take the whole widget with it. Degrade to a tab that
+        // does nothing rather than a page where no tab works.
+        var panel = document.getElementById(t.getAttribute('aria-controls'));
+        if (panel) { panel.hidden = !on; }
+      });
+      if (moveFocus) tab.focus();
+    }
+
+    var STEP = { ArrowRight: 1, ArrowLeft: -1 };
+    tabs.forEach(function (tab, i) {
+      tab.addEventListener('click', function () { select(tab, false); });
+      tab.addEventListener('keydown', function (e) {
+        var next = null;
+        if (Object.prototype.hasOwnProperty.call(STEP, e.key)) {
+          next = tabs[(i + STEP[e.key] + tabs.length) % tabs.length];
+        } else if (e.key === 'Home') { next = tabs[0]; }
+        else if (e.key === 'End') { next = tabs[tabs.length - 1]; }
+        if (next) { e.preventDefault(); select(next, true); }
+      });
+    });
+
+    // Initialise the roving tabindex from the markup, so aria-selected in the
+    // HTML stays the single source of truth for which tab opens.
+    select(tabs.filter(function (t) {
+      return t.getAttribute('aria-selected') === 'true';
+    })[0] || tabs[0], false);
+  })();
+</script>
+</body>
+</html>
