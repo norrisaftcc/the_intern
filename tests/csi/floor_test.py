@@ -588,7 +588,14 @@ def check_baseline() -> list[Finding]:
 # a false positive: it contains the phrase while describing the arrangement
 # rather than declaring itself one.
 SHARED_BASE_RE = re.compile(r"\*\*This file is the shared base", re.I)
-BASE_VERSION_RE = re.compile(r"[Bb]ase version\s*\**\s*(\d{4})-(\d{2})-(\d{2})\.(\d+)")
+# `\b` matters: without it "Database version 2026-01-01.1" matches, because
+# "base" sits inside "Database". Case-insensitive throughout, because "Base
+# Version" with a capital V was silently reported as *absent* - a stamp that
+# is present and unreadable is worse than one that is missing, since the
+# message sends the reader looking for the wrong thing.
+BASE_VERSION_RE = re.compile(
+    r"\bbase version\s*\**\s*(\d{4})-(\d{2})-(\d{2})\.(\d+)", re.I
+)
 
 
 def declares_shared_base(text: str) -> bool:
@@ -660,7 +667,7 @@ def check_shared_base(doc: Doc) -> None:
     """
     text = "\n".join(doc.body_lines)
     version, reason = read_stamp(text)
-    if reason == "no-claim" or reason == "ok":
+    if reason in ("no-claim", "ok"):
         return
     if reason == "not-a-date":
         doc.fail(

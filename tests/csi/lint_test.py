@@ -20,9 +20,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from floor_test import (  # noqa: E402
+    Doc,
     base_version,
+    check_base_versions_agree,
     declares_shared_base,
     load_docs,
+    read_stamp,
     unanchored_branches,
 )
 
@@ -93,6 +96,49 @@ def check_shared_base_cases() -> list[str]:
     return out
 
 
+def _doc(name: str, text: str) -> Doc:
+    """A synthetic document, enough of one for the shared-base checks."""
+    return Doc(Path(name), "agent", {"name": name.split(".")[0]}, text.splitlines(), 1)
+
+
+BASE = "**This file is the shared base.** Base version **{v}**."
+
+
+def check_agreement_fixtures() -> list[str]:
+    """check_base_versions_agree, on synthetic docs rather than the real repo.
+
+    It was previously verified only by editing the real files and watching the
+    output - which proves it works today and would not notice a refactor that
+    quietly stopped it working. The two-document case is the one that matters:
+    with a single shared-base file the function is trivially satisfied, so a
+    fixture with two is what keeps it honest.
+    """
+    out = []
+    cases = [
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-07-31.1"))], 0,
+         "two documents agreeing is not a finding"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-08-01.1"))], 1,
+         "two documents disagreeing is one finding"),
+        ([("a.md", BASE.format(v="2026-07-31.1"))], 0,
+         "a lone shared-base document cannot disagree with anything"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", "No claim here. Base version 2026-08-01.1")], 0,
+         "a stamp with no claim is not compared"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-13-45.1"))], 0,
+         "an unreadable stamp is check_shared_base's finding, not this one"),
+        ([], 0, "no documents at all is not a finding"),
+    ]
+    for docs, expected, why in cases:
+        findings = check_base_versions_agree([_doc(n, b) for n, b in docs])
+        if len(findings) != expected:
+            out.append(f"{why}\n    expected {expected} finding(s), got "
+                       f"{len(findings)}: {[f.detail for f in findings]}")
+    return out
+
+
 def check_roster_is_not_loaded() -> list[str]:
     """docs/csi/ROSTER.md says "a shared base" while describing the arrangement.
 
@@ -110,6 +156,7 @@ def check_roster_is_not_loaded() -> list[str]:
 def main() -> int:
     failures = []
     failures.extend(check_shared_base_cases())
+    failures.extend(check_agreement_fixtures())
     failures.extend(check_roster_is_not_loaded())
     for pattern, expected, why in CASES:
         got = unanchored_branches(pattern)
@@ -124,7 +171,8 @@ def main() -> int:
 
     print(
         f"lint test: {len(CASES)} regex-parser cases and "
-        f"{len(SHARED_BASE_CASES)} shared-base cases behave"
+        f"{len(SHARED_BASE_CASES)} shared-base cases behave, "
+        "agreement fixtures included"
     )
     return 0
 
