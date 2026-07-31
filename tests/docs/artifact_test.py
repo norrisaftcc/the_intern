@@ -158,7 +158,10 @@ class ArtifactDocument(HTMLParser):
         Caught by the real documents, again.
         """
         self.handle_starttag(tag, attrs)
-        foreign = any(t in FOREIGN for t, _ in self.stack[:-1])
+        # `self.stack`, not `self.stack[:-1]`. The tag just pushed counts:
+        # a bare `<svg/>` with no children is itself foreign content and does
+        # self-close, and excluding it reported that as an unbalanced <svg>.
+        foreign = any(t in FOREIGN for t, _ in self.stack)
         if foreign and self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
 
@@ -247,7 +250,11 @@ def check_parses() -> list[str]:
 # this file exists to remove.
 SCRIPT_RE = re.compile(
     r"""<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>(.*?)</script>""", re.S | re.I)
-TYPE_RE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]+)""", re.I)
+# `\btype` was the first version, and `\b` matches at the hyphen/letter
+# boundary in `data-type` - so a widget carrying `data-type="foo"` was
+# classified by that instead, and with both attributes present the data- one
+# won, because search() returns the first match. Anchored on start-or-space.
+TYPE_RE = re.compile(r"""(?:^|\s)type\s*=\s*["']?([^"'\s>]+)""", re.I)
 
 
 def script_problem(attrs: str, body: str) -> str | None:
@@ -263,8 +270,17 @@ def script_problem(attrs: str, body: str) -> str | None:
     in its own introduction.
     """
     if "src=" in attrs.lower():
-        return ("loads an external script. This harness cannot compare it, and "
-                "a standalone document should not need one.")
+        # Stated as a limit of this harness, NOT as a verdict on the
+        # architecture. An earlier wording said "a standalone document should
+        # not need one", which quietly encodes "keep it pasted, but check the
+        # paste" - and extracting the widget to one real file is the actual fix
+        # for the drift this check exists to detect. Refusing what this cannot
+        # read is right; declaring it wrong is not this file's call. See #43,
+        # which holds the toolchain decision for these documents.
+        return ("loads an external script, which this harness has no way to "
+                "compare. If the widget is being extracted to a shared file, "
+                "teach this check to follow it - see #43 - rather than working "
+                "around this message.")
     if "<!--" in body:
         return ("contains `<!--`, which opens the double-escaped state where "
                 "`</script>` no longer ends the element. This harness reads "
@@ -437,7 +453,23 @@ def media_spans(text: str) -> list[tuple[int, int]]:
 
 # A value that names a colour. Used to tell a token that *should* have a theme
 # variant from one that legitimately does not.
-COLOUR_RE = re.compile(r"^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|color-mix\()")
+#
+# KNOWN LIMIT, and it is the same shape as the defect this check was added for.
+# `--ultraviolet` was missed because nothing looked at unthemed tokens at all;
+# a token set to a CSS keyword outside the list below - `rebeccapurple`, say -
+# is still missed, because it looks like an identifier and so does `system-ui`.
+# The CSS named-colour set is 148 entries and inlining it here would be more
+# source than the check it serves. The residual is stated rather than closed:
+# a colour named by an uncommon keyword and declared only in the base :root
+# will not be flagged. THEME_INVARIANT below is where an intentional exemption
+# goes; this is where an unintentional one still hides.
+COLOUR_RE = re.compile(
+    r"^(#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|color-mix\(|var\(|"
+    r"transparent\b|currentcolor\b|"
+    r"(?:black|white|red|green|blue|yellow|orange|purple|grey|gray|"
+    r"pink|brown|cyan|magenta|violet|indigo|teal|navy|olive|maroon|"
+    r"silver|gold|beige|ivory|coral|salmon|crimson|lime|aqua|fuchsia)\b)",
+    re.I)
 
 # Colour tokens that are deliberately the same in every theme. Empty today.
 # Pinned as an explicit list rather than inferred, on the same reasoning as
@@ -688,6 +720,21 @@ def check_board_harness_count() -> list[str]:
 
     body = YAML_COMMENT_RE.sub("", read(workflow))
     actual = sorted(set(HARNESS_STEP_RE.findall(body)))
+
+    # Anything under tests/ that this counter cannot attribute to a
+    # `python3 <path>` invocation is named rather than dropped. A step using
+    # pytest, tox, or a wrapper script would otherwise fall out of the count
+    # silently and the board would be "correct" about a number that had
+    # stopped describing CI - skip-and-pass, in the check that exists to stop
+    # a document overclaiming its own coverage.
+    mentioned = set(re.findall(r"(tests/\S+\.py)(?!\S)", body))
+    uncounted = sorted(mentioned - set(actual))
+    if uncounted:
+        return [f"{BOARD}: checks.yml references {', '.join(uncounted)} in a "
+                "form this counter cannot read - it counts `python3 <path>` "
+                "invocations only. Either the step changed shape or a test is "
+                "run by a wrapper; teach HARNESS_STEP_RE rather than letting "
+                "the count quietly stop describing CI."]
     text = read(board)
     m = re.search(r'data-harness-count="(\d+)"', text)
     if not m:

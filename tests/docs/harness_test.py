@@ -214,6 +214,19 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
     ("no documents at all is a failure, not a pass",
      {}, True, "no HTML under docs/"),
 
+    ("a bare <svg/> with no children self-closes",
+     {"a.html": doc(GOOD_CSS, body="<svg/><p>x</p>")}, False, ""),
+
+    ("a data-type attribute does not classify the script",
+     {"a.html": doc(GOOD_CSS, script=WIDGET),
+      "b.html": doc(GOOD_CSS, script='<script data-type="module">\n  var a = 1;\n</script>')},
+     False, ""),
+
+    ("a colour named by a keyword still has to theme",
+     {"a.html": doc(GOOD_CSS.replace("--ink: #E7E9ED;\n    --sans",
+                                     "--ink: #E7E9ED;\n    --brand: red;\n    --sans"))},
+     True, "never themes"),
+
     ("<div/> is not self-closing in HTML and must not balance the stack",
      {"a.html": doc(GOOD_CSS, body="<div/><p>x</p>")}, True, "never closed"),
 
@@ -279,6 +292,12 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
      "steps:\n  - run: python3 tests/a_test.py\n  - run: python3 tests/b.pyx\n",
      False, ""),
 
+    # A pytest/tox/wrapper step would have dropped out of the count in silence.
+    ("a test invoked by a wrapper is reported, not silently dropped",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  - run: python3 tests/a_test.py\n  - run: pytest tests/b_test.py\n",
+     True, "cannot read"),
+
     ("a path named only in a comment is not counted",
      doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
      "steps:\n  # python3 tests/ghost_test.py used to run here\n"
@@ -315,7 +334,7 @@ def run_against(files: dict[str, str], workflow: str | None = None) -> tuple[int
         try:
             with contextlib.redirect_stdout(sink):
                 code = A.main()
-        except BaseException as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 - a Ctrl-C is not a finding
             # A harness that dies with a traceback where it should report is
             # the failure this whole stack is about. Reverting the media_spans
             # fix made THIS file crash rather than say which case broke.
