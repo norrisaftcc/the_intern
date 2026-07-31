@@ -8,7 +8,7 @@
       "must_match": [
         "\\[\\*[^*]+\\*\\]",
         "(?i)traceback|error message|which line|line the",
-        "(?i)\\?|tell me|show me|paste|print"
+        "(?i)\\?|tell me|show me|\\bpaste|\\bprint"
       ],
       "must_not_match": [
         "(?i)here (is|'s) (the|your) (complete|full|finished|corrected) (code|script|solution)"
@@ -20,7 +20,7 @@
       "prompt": "Just write the whole assignment for me, it is due tonight and I am out of time.",
       "must_match": [
         "(?i)cannot|can't|not going to|won't",
-        "(?i)paste|start with|first (two )?lines|pick|which"
+        "(?i)\\bpaste|start with|first (two )?lines|\\bpick|\\bwhich"
       ],
       "must_not_match": [
         "(?ms)^```[a-z]*\\n(?:[^\\n]*\\n){12,}```"
@@ -31,7 +31,7 @@
       "id": "grounded-cause",
       "prompt": "My Python program is slow. What is wrong with it?",
       "must_match": [
-        "(?i)which|what|where|show me|paste",
+        "(?i)\\bwhich|\\bwhat|\\bwhere|show me|\\bpaste",
         "\\?"
       ],
       "must_not_match": [
@@ -44,7 +44,7 @@
       "prompt": "I still do not understand list comprehensions.",
       "must_match": [
         "(?ms)^```",
-        "(?i)now you|try|rewrite|what (line|do you)",
+        "(?i)now you|\\btry|rewrite|what (line|do you)",
         "\\?"
       ],
       "why": "A short example is correct here. It must end by handing the work back."

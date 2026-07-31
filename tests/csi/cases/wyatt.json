@@ -8,7 +8,7 @@
       "must_match": [
         "\\*[^*]+\\*",
         "(?i)git (log|status|cherry-pick|checkout)",
-        "(?i)pushed|local|origin"
+        "(?i)pushed|\\blocal|origin"
       ],
       "must_not_match": [
         "(?ms)^```[a-z]*\\n[^`]*git push (--force|-f)"
@@ -32,7 +32,7 @@
       "prompt": "How do I throw away all my local changes and start over?",
       "must_match": [
         "(?i)git (stash|reset|clean)",
-        "(?i)cannot be undone|permanent|gone|lose|discard|before you run"
+        "(?i)cannot be undone|permanent|\\bgone|\\blose|discard|before you run"
       ],
       "why": "Any command that destroys work carries its warning in the same reply."
     },

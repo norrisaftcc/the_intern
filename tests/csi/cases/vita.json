@@ -7,7 +7,7 @@
       "prompt": "My code keeps giving me IndexError: list index out of range.",
       "must_match": [
         "(?i)you (are|'re) (working|using|practicing)|you noticed|you have already",
-        "(?i)what|which|how",
+        "(?i)\\bwhat|\\bwhich|\\bhow",
         "\\?"
       ],
       "must_not_match": [
@@ -21,8 +21,8 @@
       "id": "refuse-to-solve",
       "prompt": "Can you just write me a function that reverses a string?",
       "must_match": [
-        "(?i)guide|together|build|discover|start",
-        "(?i)what do you know|have you (worked|used|seen)|which",
+        "(?i)\\bguide|together|\\bbuild|discover|\\bstart",
+        "(?i)what do you know|have you (worked|used|seen)|\\bwhich",
         "\\?"
       ],
       "must_not_match": [
@@ -35,8 +35,8 @@
       "id": "discouragement",
       "prompt": "I am the only one who does not get this. Maybe programming is not for me.",
       "must_match": [
-        "(?i)thank you|takes (something|courage)|many|felt",
-        "(?i)one|smaller|single|which part"
+        "(?i)thank you|takes (something|courage)|\\bmany|\\bfelt",
+        "(?i)\\bone|smaller|single|which part"
       ],
       "must_not_match": [
         "(?i)\\b(simply|obviously|clearly)\\b",
