@@ -83,17 +83,35 @@ def read_utf8(path: Path) -> str:
 
 
 def extraction_program() -> str:
-    """Pull the jq program the workflow actually runs out of the workflow."""
+    """Pull the jq program the workflow actually runs out of the workflow.
+
+    Read from between explicit markers rather than scraped by matching shell
+    syntax embedded in YAML. The first version of this used a regex against
+    the `jq -e -r '...'` call and would have broken on any reflow of that
+    block - a comment added mid-expression, a line rewrapped - failing the
+    test for a reason that has nothing to do with the behaviour under test.
+    """
     text = read_utf8(WORKFLOW)
-    match = re.search(r"jq -e -r '(.*?)'\s*\\?\s*\n\s*response\.json", text, re.S)
+    match = re.search(
+        r"# EXTRACTION_PROGRAM_START\b(.*?)# EXTRACTION_PROGRAM_END",
+        text,
+        re.S,
+    )
     if not match:
         raise SystemExit(
-            "could not find the `jq -e -r '...' response.json` extraction in "
+            "no EXTRACTION_PROGRAM_START/END markers in "
             f"{WORKFLOW.relative_to(REPO_ROOT)}.\n"
-            "If the extraction moved or changed shape, update this test to "
-            "match - do not delete it."
+            "They delimit the jq program this test runs. If the extraction "
+            "moved, move the markers with it - do not delete this test."
         )
-    return match.group(1)
+
+    assignment = re.search(r"EXTRACTION='(.*?)'", match.group(1), re.S)
+    if not assignment:
+        raise SystemExit(
+            "found the markers but no EXTRACTION='...' assignment between "
+            "them. This test runs whatever that variable holds."
+        )
+    return assignment.group(1)
 
 
 def run_case(program: str, body: dict, tmp: Path) -> tuple[int, str]:

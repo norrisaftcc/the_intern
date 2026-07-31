@@ -116,6 +116,29 @@ needs, is open and deliberately not decided here.
 - Civvie and the Notion bot are in `artifacts/` but stayed out of the roster. The sources
   are a joke and an observation, not a persona. No invented personas.
 
+## What a passing case file does and does not mean
+
+The case files in `tests/csi/cases/` are **smoke tests for drift, not correctness
+proofs.** They match regexes against generated prose. A persona that passes has not
+been shown to be right about anything — only that its reply still carries the markers
+its contract calls for and none of the ones it forbids. `floor_test.py` says so on
+every scoring run: *"Marker matching is not a judgement of quality. Read the reply
+yourself."*
+
+Two consequences worth stating so no later reader mistakes a green run for a guarantee:
+
+- A passing `kevin.json` is not evidence that a case file is forensically correct.
+  It is evidence that Kevin still refuses verdicts and still quotes evidence.
+- A negative keyed off a bare keyword can score the correct answer as a violation.
+  That already happened once here: `wrong-branch` matched `git push --force` with a
+  forward-only lookahead, so *"do not run `git push --force`"* scored identically to
+  recommending it. Negatives should key off structure — a runnable code block, a
+  claim to have done the thing — not off vocabulary the persona needs in order to
+  decline.
+
+When adding a case, write a reply that **must fail** and confirm it does. A case file
+that passes everything you feed it is measuring nothing.
+
 ## Adding one
 
 See the `csi-fork-protocol` skill, section "Adding a persona". The short version: it needs
