@@ -572,6 +572,39 @@ def check_baseline() -> list[Finding]:
     return findings
 
 
+BASE_VERSION_RE = re.compile(r"[Bb]ase version\s*\**\s*(\d{4}-\d{2}-\d{2}\.\d+)")
+
+
+def check_shared_base(doc: Doc) -> None:
+    """A document claiming to be a shared base must say which version.
+
+    Some documents here are byte-identical copies of a file in another
+    repository, kept that way on purpose and expected to diverge later. That
+    arrangement rots in a predictable way: someone edits one copy, the claim
+    "the same text lives in both" silently becomes false, and a later reader
+    cannot tell which differences were deliberate.
+
+    A version stamp does not prevent the edit and is not meant to. It gives the
+    divergence a reference point - "this started from base 2026-07-31.1" - so
+    an intentional adjustment reads differently from drift. The stamp is
+    enforced here rather than asked for in prose, because this repository has
+    a long record of prose rules going unmet.
+
+    A cross-repository byte comparison is what would actually catch drift, and
+    CI in one repository cannot do it. This is the part that can be checked
+    from inside a single checkout, and it is not a substitute for the other.
+    """
+    text = "\n".join(doc.body_lines)
+    if "shared base" not in text.lower():
+        return
+    if not BASE_VERSION_RE.search(text):
+        doc.fail(
+            "shared-base",
+            "claims to be a shared base but states no base version · "
+            "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
+        )
+
+
 def check_document(doc: Doc) -> None:
     """Checks a document answers from its own text alone.
 
@@ -585,6 +618,7 @@ def check_document(doc: Doc) -> None:
     check_token_economy(doc, secs)
     check_notation(doc, secs)
     check_examples(doc, secs)
+    check_shared_base(doc)
 
 
 def run_roster(verbose: bool) -> int:
