@@ -170,10 +170,15 @@ jobs:
           # not escape backslashes, tabs or control characters - so any diff
           # containing a backslash produced malformed JSON, another error the
           # fallback absorbed.
+          # max_tokens covers thinking tokens as well as the reply. This model
+          # thinks by default, and at 2000 the whole budget went to thinking:
+          # run 30594010555 returned stop_reason max_tokens with 2000 thinking
+          # tokens and no text block at all. The ceiling has to clear the
+          # thinking budget with the review still to come.
           jq -n \
             --rawfile prompt review_prompt.txt \
             --arg model "$MODEL" \
-            '{model: $model, max_tokens: 2000,
+            '{model: $model, max_tokens: 16000,
               messages: [{role: "user", content: $prompt}]}' > request.json
 
           # Body and status captured separately so the log can show what the
@@ -197,11 +202,26 @@ jobs:
             exit 1
           fi
 
-          # No `//` alternative. `jq -e` exits non-zero when the path is absent
-          # or null, and `set -e` takes the step down with it. This is the line
+          # Reported before the extraction, because a truncated response is a
+          # budget problem and reads nothing like a malformed one. Run
+          # 30594010555 cost an hour to the difference.
+          stop_reason=$(jq -r '.stop_reason // "absent"' response.json)
+          if [ "$stop_reason" = "max_tokens" ]; then
+            echo "::error::Response hit max_tokens. Raise the ceiling; the review did not fit."
+          fi
+
+          # `.content` is a list of blocks and the first one is not necessarily
+          # the text. This model emits a thinking block ahead of it, so
+          # `.content[0].text` selected a block that has no `.text` key.
+          # Select by type instead of by position.
+          #
+          # No `//` alternative. `jq -e` exits non-zero when the selection is
+          # empty, and `set -e` takes the step down with it. This is the line
           # Finding 5 is about.
-          if ! jq -e -r '.content[0].text' response.json > review.md; then
-            echo "::error::HTTP 200, but the response carried no .content[0].text."
+          if ! jq -e -r '[.content[] | select(.type == "text") | .text] | add' \
+              response.json > review.md; then
+            echo "::error::HTTP 200, but the response carried no text block."
+            echo "::error::Blocks present: $(jq -r '[.content[].type] | join(", ")' response.json)"
             cat response.json
             exit 1
           fi
