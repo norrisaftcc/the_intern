@@ -67,7 +67,7 @@ jobs:
       #
       # Both were found by reading history. This finds the next one on the
       # commit that adds it.
-      - name: No workflow files outside the root
+      - name: Fail on workflow files outside the repository root
         run: |
           set -euo pipefail
           stray=$(git ls-files '*/.github/workflows/*')
@@ -91,3 +91,6 @@ jobs:
 
       - name: Review extraction guard
         run: python3 tests/workflow/extraction_test.py
+
+      - name: Stray-workflow pathspec behaves
+        run: python3 tests/workflow/stray_workflow_test.py
