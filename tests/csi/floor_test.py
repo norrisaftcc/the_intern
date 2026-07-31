@@ -170,6 +170,14 @@ def read_utf8(path: Path) -> str:
 
 
 def load_docs() -> list[Doc]:
+    """Every document the floor applies to.
+
+    Scoped to .claude/ deliberately. docs/csi/ROSTER.md describes the
+    shared-base arrangement without being one, so widening this glob to docs/
+    would make check_shared_base fire on it. lint_test.py pins that coupling
+    from the other end - if you change this glob, that test is where the
+    breakage will surface and why.
+    """
     docs: list[Doc] = []
     for path in sorted(AGENT_DIR.glob("*.md")):
         fm, body, offset = parse_frontmatter(read_utf8(path), path)
@@ -588,23 +596,47 @@ def declares_shared_base(text: str) -> bool:
     return bool(SHARED_BASE_RE.search(text))
 
 
-def base_version(text: str) -> str | None:
-    """The stamp, if it is present and is a real date.
+def read_stamp(text: str) -> tuple[str | None, str]:
+    """The base version stamp, and why it is absent when it is.
 
-    `2026-13-45.1` is date-shaped and is not a date. A stamp exists to be a
-    reference point for a later divergence, and a garbage one is a reference
-    to nothing - so this validates rather than pattern-matching, and returns
-    None for anything that will not survive being read as a calendar date.
+    Returns (version, reason). The reason lets the caller report "no stamp"
+    and "stamp that is not a date" differently without re-running the regex to
+    find out which happened.
+
+    The stamp is searched for in the paragraph that carries the declaration,
+    not across the whole document. A file can legitimately quote another file's
+    stamp in prose - this one does, in its own docstrings - and a stamp that
+    merely appears somewhere is not a stamp *on* the declaration.
     """
-    m = BASE_VERSION_RE.search(text)
+    claim = SHARED_BASE_RE.search(text)
+    if not claim:
+        return None, "no-claim"
+
+    # From the declaration to the end of its paragraph.
+    tail = text[claim.start():]
+    para_end = tail.find("\n\n")
+    paragraph = tail if para_end == -1 else tail[:para_end]
+
+    m = BASE_VERSION_RE.search(paragraph)
     if not m:
-        return None
+        return None, "absent"
     year, month, day, serial = m.groups()
     try:
         date(int(year), int(month), int(day))
     except ValueError:
-        return None
-    return f"{year}-{month}-{day}.{serial}"
+        return None, "not-a-date"
+    return f"{year}-{month}-{day}.{serial}", "ok"
+
+
+def base_version(text: str) -> str | None:
+    """The stamp, if it is present on the declaration and is a real date.
+
+    `2026-13-45.1` is date-shaped and is not a date. A stamp exists to be a
+    reference point for a later divergence, and a garbage one is a reference
+    to nothing - so this validates rather than pattern-matching.
+    """
+    version, _ = read_stamp(text)
+    return version
 
 
 def check_shared_base(doc: Doc) -> None:
@@ -627,21 +659,21 @@ def check_shared_base(doc: Doc) -> None:
     from inside a single checkout, and it is not a substitute for the other.
     """
     text = "\n".join(doc.body_lines)
-    if not declares_shared_base(text):
+    version, reason = read_stamp(text)
+    if reason == "no-claim" or reason == "ok":
         return
-    if base_version(text) is None:
-        if BASE_VERSION_RE.search(text):
-            doc.fail(
-                "shared-base",
-                "base version is date-shaped but not a real date · "
-                "a stamp that cannot be read as a calendar date is a reference to nothing",
-            )
-        else:
-            doc.fail(
-                "shared-base",
-                "claims to be a shared base but states no base version · "
-                "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
-            )
+    if reason == "not-a-date":
+        doc.fail(
+            "shared-base",
+            "base version is date-shaped but not a real date · "
+            "a stamp that cannot be read as a calendar date is a reference to nothing",
+        )
+    else:
+        doc.fail(
+            "shared-base",
+            "claims to be a shared base but states no base version beside the claim · "
+            "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
+        )
 
 
 def check_base_versions_agree(docs: list[Doc]) -> list[Finding]:
@@ -655,8 +687,11 @@ def check_base_versions_agree(docs: list[Doc]) -> list[Finding]:
     check is what has to be changed to allow it - which is the point. A
     deliberate divergence should cost a deliberate edit.
     """
-    stamped = [(d, base_version("\n".join(d.body_lines))) for d in docs]
-    stamped = [(d, v) for d, v in stamped if v and declares_shared_base("\n".join(d.body_lines))]
+    stamped = []
+    for d in docs:
+        version, reason = read_stamp("\n".join(d.body_lines))
+        if reason == "ok" and version:
+            stamped.append((d, version))
     versions = {v for _, v in stamped}
     if len(versions) <= 1:
         return []

@@ -62,7 +62,12 @@ SHARED_BASE_CASES: list[tuple[str, bool, str | None, str]] = [
     ("**This file is the shared base**, and it is deliberately basic.",
      True, None, "declaration without a stamp is the failing case"),
     ("Base version 2026-07-31.1 appears here with no claim.",
-     False, "2026-07-31.1", "a stamp with no claim is a no-op, not a finding"),
+     False, None, "a stamp with no claim is a no-op; the stamp belongs to a declaration"),
+    ("**This file is the shared base.**\n\nUnrelated prose.\n\nBase version 2026-07-31.1",
+     True, None, "a stamp in a later paragraph is not a stamp on the declaration"),
+    ("**This file is the shared base.** Base version **2026-07-31.1**.\n"
+     "Continuing the same paragraph.",
+     True, "2026-07-31.1", "same paragraph, wrapped across a single newline, still counts"),
     ("This is not intended as a shared base.",
      False, None, "prose mentioning the phrase must not trip the check"),
     ("Unlike our shared base pattern, this file stands alone.",

@@ -35,12 +35,22 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is here because a review asked whether these files still import
+        # on it and the honest answer was that nothing checked. `test (3.9)`
+        # runs pytest inside projects/algocratic-futures/backend and never
+        # touches tests/csi/ at all, so the compatibility claim was reasoning
+        # rather than evidence. fail-fast is off so one version failing does
+        # not hide the other's result.
+        python-version: ['3.9', '3.11']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       # Both tests are standard library only, by design. No pip step, nothing
       # to pin, nothing to go stale. `jq` is present on ubuntu-latest and the
