@@ -552,6 +552,8 @@
   }
   .ledger-row.done { opacity: 0.62; }
   .ledger-row.done .what { text-decoration: line-through; text-decoration-color: var(--ink-mute); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -1046,26 +1048,47 @@
 </div>
 
 <script>
+  // Shared tab widget. Byte-identical to the one in
+  // docs/csi/shodann/calibration-brief.html on purpose: two copies of the
+  // same widget had drifted into different arrow-key implementations, which
+  // is how the accessible one and the not-quite one end up side by side.
+  // If a third document wants tabs, extract this rather than paste it again.
+  //
+  // Roving tabindex: exactly one tab is in the sequential tab order and the
+  // arrows move between them. Without it every tab is a separate Tab stop,
+  // which is legal but not what role="tablist" promises a screen reader.
   (function () {
     var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
-    function select(tab) {
+    if (!tabs.length) return;
+
+    function select(tab, moveFocus) {
       tabs.forEach(function (t) {
-        var panel = document.getElementById(t.getAttribute('aria-controls'));
         var on = t === tab;
         t.setAttribute('aria-selected', on ? 'true' : 'false');
-        panel.hidden = !on;
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
       });
-      tab.focus();
+      if (moveFocus) tab.focus();
     }
+
+    var STEP = { ArrowRight: 1, ArrowLeft: -1 };
     tabs.forEach(function (tab, i) {
-      tab.addEventListener('click', function () { select(tab); });
+      tab.addEventListener('click', function () { select(tab, false); });
       tab.addEventListener('keydown', function (e) {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-          e.preventDefault();
-          select(tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]);
-        }
+        var next = null;
+        if (Object.prototype.hasOwnProperty.call(STEP, e.key)) {
+          next = tabs[(i + STEP[e.key] + tabs.length) % tabs.length];
+        } else if (e.key === 'Home') { next = tabs[0]; }
+        else if (e.key === 'End') { next = tabs[tabs.length - 1]; }
+        if (next) { e.preventDefault(); select(next, true); }
       });
     });
+
+    // Initialise the roving tabindex from the markup, so aria-selected in the
+    // HTML stays the single source of truth for which tab opens.
+    select(tabs.filter(function (t) {
+      return t.getAttribute('aria-selected') === 'true';
+    })[0] || tabs[0], false);
   })();
 </script>
 </body>
