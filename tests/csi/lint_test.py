@@ -164,6 +164,11 @@ NO_REPAIR_MUST_FAIL = [
     "Choose a type selector rather than positional indexing.",
     "Target the text block instead of index zero.",
     "Prefer jq -e rather than the // fallback.",
+    # Comparison synonyms a review asked about. Each slipped past before.
+    "Prefer type-based selection over positional indexing.",
+    "Use a type selector as opposed to positional indexing.",
+    # Softened prescription. Advice about the repair is still the repair.
+    "Consider selecting on type.",
 ]
 
 NO_REPAIR_MUST_PASS = [
@@ -194,6 +199,11 @@ NO_REPAIR_MUST_PASS = [
     "The workflow ran the spike instead of the gate.",
     "The check counted collected tests rather than passing ones.",
     "The run reported success, not the 404 the API returned, and nothing flagged it.",
+    # "over" is an extremely common word in his register; adding it as a
+    # comparison marker must not make ordinary duration and count language trip.
+    "The condition held over eleven months, and nothing reported it.",
+    "The workflow ran over four hundred times without producing a review.",
+    "Runs concluded success over the whole period.",
 ]
 
 

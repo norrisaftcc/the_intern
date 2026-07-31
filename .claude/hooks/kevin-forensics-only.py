@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import sys
 import posixpath
+import unicodedata
 
 # The literal the harness puts in `agent_type` for this agent. Captured from a
 # real invocation on 2026-07-31, not inferred: a live dispatch logged
@@ -42,10 +43,30 @@ ALLOWED = "artifacts/forensics"
 # depend on that staying true.
 PATH_KEYS = ("file_path", "notebook_path", "path")
 
-# The tools this hook knows how to read a path out of. Must stay in step with
-# the matcher in .claude/settings.json; tests/workflow/kevin_scope_test.py
-# fails if they diverge.
+# The tools this hook knows how to read a path out of.
+#
+# Three places encode overlapping facts about writing: this list, the matcher
+# in .claude/settings.json, and KEVIN_TOOLS in the test. They are separate on
+# purpose - the matcher decides what reaches the hook, this decides what it
+# will act on, and the test pins what Kevin holds - but they can drift.
+# tests/workflow/kevin_scope_test.py fails if any pair disagrees. A fourth
+# list would want a single source of truth instead.
 WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+
+
+def normalise(value: object) -> str:
+    """Fold an agent identifier to something comparable.
+
+    This is the single point of trust: if the comparison fails, the hook takes
+    the "not Kevin" branch and allows everything. So a zero-width space or a
+    compatibility-form character in `agent_type` would be a silent fail-open,
+    which is the one shape of failure this file exists to prevent. NFKC folds
+    compatibility forms; the filter drops anything unprintable.
+    """
+    if not isinstance(value, str):
+        return ""
+    folded = unicodedata.normalize("NFKC", value)
+    return "".join(c for c in folded if c.isprintable()).strip().lower()
 
 
 def allow() -> None:
@@ -90,7 +111,14 @@ def resolve(cwd: str, target: str) -> str:
 
 
 def main() -> None:
-    raw = sys.stdin.read()
+    # Bounded. Not exploitable from a trusted harness, but an unbounded read
+    # in a file this careful about everything else reads as an oversight.
+    MAX_PAYLOAD = 8 * 1024 * 1024
+    raw = sys.stdin.read(MAX_PAYLOAD + 1)
+    if len(raw) > MAX_PAYLOAD:
+        deny(f"Kevin's write scope could not be checked: payload exceeded "
+             f"{MAX_PAYLOAD} bytes. Refusing rather than truncating.")
+        return
     try:
         payload = json.loads(raw or "{}")
     except json.JSONDecodeError:
@@ -100,9 +128,16 @@ def main() -> None:
              "not parse. Refusing rather than assuming.")
         return
 
-    agent = payload.get("agent_type")
-    if not isinstance(payload, dict) or not isinstance(agent, str) \
-            or agent.strip().lower() != AGENT:
+    if not isinstance(payload, dict):
+        # A JSON array or scalar has no .get. The previous version called
+        # .get before this check, so a non-dict raised AttributeError and was
+        # caught by the guard in __main__ - it failed closed by accident,
+        # and this check was unreachable.
+        deny("Kevin's write scope could not be checked: the payload was not "
+             "an object. Refusing rather than assuming.")
+        return
+
+    if normalise(payload.get("agent_type")) != AGENT:
         allow()
         return
 
@@ -111,8 +146,11 @@ def main() -> None:
     # of the same list and can drift, so an unrecognised tool arriving here is
     # a refusal rather than a shrug - it means the matcher was widened without
     # this being updated, and the safe reading of an unknown write path is no.
+    # Absent is refused too. Every other missing field here denies, and
+    # exempting this one would leave the matcher in settings.json as the sole
+    # gate - which is what the check exists to stop depending on.
     tool_name = payload.get("tool_name")
-    if tool_name is not None and tool_name not in WRITE_TOOLS:
+    if tool_name not in WRITE_TOOLS:
         deny(f"Kevin's write scope could not be checked: {tool_name!r} reached "
              "this hook, which only knows how to read a path out of "
              f"{', '.join(WRITE_TOOLS)}. Widening the matcher needs this "

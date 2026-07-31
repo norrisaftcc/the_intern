@@ -38,69 +38,70 @@ WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 
 # (payload, expect_denied, what it pins down)
 CASES: list[tuple[dict, bool, str]] = [
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    # Every case carries tool_name, because every real payload does — the live
+    # dispatch that confirmed agent_type showed it on both calls. An earlier
+    # version of this list omitted it, which meant the fixtures were exercising
+    # a payload shape the harness never sends.
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/forensics/2026-07-31-a-case.md"}},
      False, "his own directory is where he works"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "{repo}/artifacts/forensics/absolute.md"}},
      False, "an absolute path into that directory is the same place"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/forensics/nested/deeper.md"}},
      False, "a subdirectory of it is still it"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Edit",
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
      True, "the roster is not his to edit"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/casefiles/kai.md"}},
      True, "Kai's case files are hers; same unit, different job, separate paths"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "/etc/passwd"}},
      True, "nor anything outside the repository"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/forensics/../../docs/sneak.md"}},
      True, "traversal out of the directory is not a way back in"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/forensics-notes/x.md"}},
      True, "a directory that merely starts with the allowed name is not it"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}",
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "NotebookEdit",
       "tool_input": {"notebook_path": "notebooks/scratch.ipynb"}},
      True, "NotebookEdit names its path differently and is still covered"),
 
     # --- fails closed, not open ---
-    ({"agent_type": "kevin", "cwd": "{repo}", "tool_input": {}},
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write", "tool_input": {}},
      True, "a call naming no path is refused, not waved through"),
 
-    ({"agent_type": "kevin", "tool_input": {"file_path": "artifacts/forensics/x.md"}},
+    ({"agent_type": "kevin", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/x.md"}},
      True, "no cwd means the allowed directory cannot be located - refuse"),
 
-    ({"agent_type": "kevin", "cwd": "relative/nonsense",
+    ({"agent_type": "kevin", "cwd": "relative/nonsense", "tool_name": "Write",
       "tool_input": {"file_path": "artifacts/forensics/x.md"}},
      True, "a non-absolute cwd is not something to guess from"),
 
-    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
-      "tool_input": {"file_path": "artifacts/forensics/named-tool.md"}},
-     False, "a known write tool naming an allowed path still passes"),
+    ({"agent_type": "kevin", "cwd": "{repo}",
+      "tool_input": {"file_path": "artifacts/forensics/x.md"}},
+     True, "an absent tool_name is refused too - exempting it would leave the "
+           "settings.json matcher as the only gate"),
 
-    # Isolates the tool_name gate: the path is ALLOWED, so the only thing
-    # that can refuse this is the unrecognised tool. An earlier version of
-    # this case used a Bash payload with no path key at all, which the
-    # no-path branch denied anyway - it passed whether the gate existed or
-    # not, and proved nothing.
+    # Isolates the tool_name gate: the path is ALLOWED, so the only thing that
+    # can refuse this is the unrecognised tool.
     ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Bash",
       "tool_input": {"file_path": "artifacts/forensics/allowed.md"}},
-     True, "an unrecognised tool is refused even with an allowed path - it "
-           "means the matcher was widened without the hook being told"),
+     True, "an unrecognised tool is refused even with an allowed path"),
 
-    # Casing is normalised. A mismatch here would not fail loudly - it would
-    # take the "not Kevin" branch and allow everything.
+    # --- still him ---
     ({"agent_type": "Kevin", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
      True, "a differently-cased agent_type is still him"),
@@ -109,12 +110,18 @@ CASES: list[tuple[dict, bool, str]] = [
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
      True, "surrounding whitespace does not let him out"),
 
+    ({"agent_type": "kevin\u200b", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "a zero-width space does not let him out either - the one field the "
+           "whole model trusts is normalised before comparison"),
+
     # --- and open for everyone else ---
-    ({"agent_type": "general-purpose", "cwd": "{repo}",
+    ({"agent_type": "general-purpose", "cwd": "{repo}", "tool_name": "Write",
       "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
      False, "another agent's writes are not this hook's business"),
 
-    ({"cwd": "{repo}", "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+    ({"cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
      False, "the main thread carries no agent_type and is never held"),
 ]
 
