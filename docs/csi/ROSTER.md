@@ -66,10 +66,17 @@ He is the control, which means two things the others do not carry:
   `PreToolUse` hook, not by his prompt. He is the control, and a control whose
   boundary can be talked out of is weaker than the thing it checks. The hook
   scopes on `agent_type`, so it holds him and nobody else; the main thread and
-  other agents are untouched. `tests/workflow/kevin_scope_test.py` covers nine
-  cases including path traversal, and checks that `settings.json` actually
-  invokes the script — a correct hook nothing calls is the defect this
-  repository keeps finding.
+  other agents are untouched. It **fails closed**: an unparseable payload, a
+  call naming no path, or a missing `cwd` is refused rather than waved through,
+  because enforcement that degrades to permissive is the advisory boundary it
+  replaced.
+
+  **What it does not cover, so "structural" is not overclaimed.** Kevin holds
+  `Bash`, and `echo x > path` is a write the hook never sees. Closing that
+  means taking Bash away, which he needs to read git history — the reason he
+  exists. So the hook closes the Write path and narrows the gap; it does not
+  seal it. The honest description is "enforced where it can be", which is what
+  the principle says in the first place.
 
 RED clearance is the structural half of that. He cannot spawn agents, and per
 `clearance.py` the RED band speaks "only about movement," never absolute

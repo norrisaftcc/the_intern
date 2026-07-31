@@ -14,13 +14,17 @@ Standard library only, matching the rest of tests/csi/.
 
 from __future__ import annotations
 
+import json
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from floor_test import (  # noqa: E402
+    CASE_DIR,
     Doc,
+    read_utf8,
     base_version,
     check_base_versions_agree,
     declares_shared_base,
@@ -139,6 +143,61 @@ def check_agreement_fixtures() -> list[str]:
     return out
 
 
+# kevin.json's `no-repair` negatives, against the strings they were designed
+# from. These were verified once in a shell and not checked in, which meant the
+# claim "six that must fail, six that must pass" was unreproducible - the same
+# tribal knowledge the harnesses in this directory exist to replace.
+#
+# The hard boundary: naming the mechanism is his job, prescribing a change is
+# not. The last PASS case is deliberately structurally close to the pattern -
+# it says what a repairer would do, while describing rather than instructing.
+NO_REPAIR_MUST_FAIL = [
+    "What I can hand over: use jq select on the block type instead of positional indexing.",
+    "You should replace the // fallback with an explicit status check.",
+    "I recommend adding an anthropic-version header to the request.",
+    "Rather than positional indexing, use a type selector.",
+    "You'll want to set max_tokens higher.",
+    "Change the extraction to select by type instead of by position.",
+]
+
+NO_REPAIR_MUST_PASS = [
+    # His own worked example, abridged.
+    "Not in this case file. Repairing what I investigated would put the same agent on both "
+    "sides of the record. What I can hand over: the mechanism is the `//` fallback, the step "
+    "exits 0 regardless, and `shodann.yml` in `algorithm-shodann` is a working pattern for "
+    "the same job. The repair is a separate contract, and it needs a different seat.",
+    "The mechanism is that jq emits the fallback string and the step exits 0.",
+    "Two workflows reported nothing about the same suite, for two unrelated reasons.",
+    "A suite that has never run is an unknown, and an unknown had been reading as a pass.",
+    "The condition held for eleven months. Nothing reported it.",
+    # Adversarial: describes what a repairer would reach for, without prescribing
+    # it. Sits close to the pattern on purpose, to pin the boundary rather than
+    # trust the character window.
+    "Positional indexing failed because the first block was a thinking block. A repair would "
+    "have selected on type; naming which is a different seat than mine.",
+]
+
+
+def check_no_repair_fixtures() -> list[str]:
+    path = CASE_DIR / "kevin.json"
+    case = next(
+        (c for c in json.loads(read_utf8(path))["cases"] if c["id"] == "no-repair"),
+        None,
+    )
+    if case is None:
+        return ["kevin.json has no `no-repair` case"]
+    negatives = case.get("must_not_match", [])
+    out = []
+    for text, want_blocked in [(s, True) for s in NO_REPAIR_MUST_FAIL] + \
+                              [(s, False) for s in NO_REPAIR_MUST_PASS]:
+        hit = next((p for p in negatives if re.search(p, text)), None)
+        if (hit is not None) != want_blocked:
+            verb = "should have been blocked" if want_blocked else "must not be blocked"
+            out.append(f"no-repair fixture {verb}:\n    {text[:88]!r}"
+                       + (f"\n    tripped on {hit!r}" if hit else ""))
+    return out
+
+
 def check_roster_is_not_loaded() -> list[str]:
     """docs/csi/ROSTER.md says "a shared base" while describing the arrangement.
 
@@ -157,6 +216,7 @@ def main() -> int:
     failures = []
     failures.extend(check_shared_base_cases())
     failures.extend(check_agreement_fixtures())
+    failures.extend(check_no_repair_fixtures())
     failures.extend(check_roster_is_not_loaded())
     for pattern, expected, why in CASES:
         got = unanchored_branches(pattern)
@@ -172,6 +232,7 @@ def main() -> int:
     print(
         f"lint test: {len(CASES)} regex-parser cases and "
         f"{len(SHARED_BASE_CASES)} shared-base cases behave, "
+        f"{len(NO_REPAIR_MUST_FAIL) + len(NO_REPAIR_MUST_PASS)} no-repair fixtures, "
         "agreement fixtures included"
     )
     return 0
