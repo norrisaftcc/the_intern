@@ -22,6 +22,18 @@ scoped to `.claude/` on purpose, because `docs/csi/ROSTER.md` describes the
 shared-base arrangement without being one and would false-positive if swept in.
 Nothing here reads prose. It checks structure only.
 
+WHAT THIS DELIBERATELY DOES NOT DO, so "checked" is not overclaimed:
+
+  - It is not an HTML validator. `Balance` checks that tags nest and close.
+    HTML5 permits `<li>`, `<p>` and `<td>` to omit their closing tags; this
+    would report those as unclosed. Both current documents close everything
+    explicitly. A future document that does not is a reason to teach this
+    check the optional-end-tag rules, not a reason to loosen it into silence.
+  - CSS is read with a brace counter that understands strings and comments and
+    nothing else. It is not a CSS parser. Where it cannot locate a block it
+    says so as its own failure rather than reporting the empty result as a
+    hundred colour mismatches.
+
     python3 tests/docs/artifact_test.py
 
 Standard library only.
@@ -45,28 +57,45 @@ VOID = {
     "link", "meta", "param", "source", "track", "wbr",
 }
 
-REQUIRED_SCAFFOLD = (
-    "<!DOCTYPE html>",
-    '<meta charset="utf-8">',
-    "<body>",
-    "</html>",
-)
 
+class Document(HTMLParser):
+    """Tag balance and scaffolding, both read from the parse rather than the text.
 
-class Balance(HTMLParser):
-    """Tag balance only. Not a validator, and does not pretend to be one."""
+    The scaffolding was checked by substring match in the first version, which
+    would have failed a document using `<!doctype html>` or
+    `<meta charset='utf-8'>` — both perfectly valid. A check that rejects
+    correct input is not as bad as one that accepts wrong input, but it is
+    still a check that is wrong, and this file has no standing to ship one.
+    """
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.stack: list[tuple[str, int]] = []
         self.errors: list[str] = []
+        self.doctype = False
+        self.charset = False
+        self.body = False
+        self.html = False
+
+    def handle_decl(self, decl: str) -> None:
+        if decl.strip().lower().startswith("doctype html"):
+            self.doctype = True
 
     def handle_starttag(self, tag: str, attrs) -> None:
+        a = {k.lower(): (v or "") for k, v in attrs}
+        if tag == "meta" and a.get("charset", "").strip().lower() == "utf-8":
+            self.charset = True
+        if tag == "body":
+            self.body = True
+        if tag == "html":
+            self.html = True
         if tag not in VOID:
             self.stack.append((tag, self.getpos()[0]))
 
     def handle_startendtag(self, tag: str, attrs) -> None:
-        pass  # self-closing, balanced by construction
+        self.handle_starttag(tag, attrs)
+        if self.stack and self.stack[-1][0] == tag:
+            self.stack.pop()
 
     def handle_endtag(self, tag: str) -> None:
         if not self.stack:
@@ -80,6 +109,18 @@ class Balance(HTMLParser):
                 f"line {self.getpos()[0]}: </{tag}> closes <{open_tag}> "
                 f"opened on line {line}"
             )
+
+    def scaffolding(self) -> list[str]:
+        missing = []
+        if not self.doctype:
+            missing.append("a <!DOCTYPE html> declaration")
+        if not self.charset:
+            missing.append('a <meta charset="utf-8">')
+        if not self.html:
+            missing.append("an <html> element")
+        if not self.body:
+            missing.append("a <body> element")
+        return missing
 
 
 def html_files() -> list[Path]:
@@ -104,21 +145,26 @@ def check_parses() -> list[str]:
     """
     out = []
     for path in html_files():
-        text = read(path)
-        for needed in REQUIRED_SCAFFOLD:
-            if needed not in text:
-                out.append(f"{rel(path)}: missing {needed!r} — a fragment, not "
-                           "a document. It will parse in quirks mode.")
-        parser = Balance()
-        parser.feed(text)
-        for err in parser.errors:
+        doc = Document()
+        doc.feed(read(path))
+        for missing in doc.scaffolding():
+            out.append(f"{rel(path)}: missing {missing} — a fragment, not a "
+                       "document. It will parse in quirks mode.")
+        for err in doc.errors:
             out.append(f"{rel(path)}: {err}")
-        for tag, line in parser.stack:
+        for tag, line in doc.stack:
             out.append(f"{rel(path)}: <{tag}> opened on line {line}, never closed")
     return out
 
 
-SCRIPT_RE = re.compile(r"<script>(.*?)</script>", re.S)
+# Any script tag, however it is spelled. The first version of this matched a
+# bare `<script>` only, and the failure mode was the worst available: a second
+# document written as `<script type="module">` was silently excluded from the
+# comparison, so the check reported "one shared widget" across two documents
+# whose widgets differed. Verified as a real false pass before this was
+# changed, not reasoned about. A check that goes quiet exactly when someone
+# deviates is the defect this file exists to catch, and it was in this file.
+SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
 
 
 def check_shared_widget() -> list[str]:
@@ -132,51 +178,111 @@ def check_shared_widget() -> list[str]:
     If a document ever legitimately needs a *different* script, this check is
     the thing that must be reopened and argued with, on purpose.
     """
-    scripts: dict[str, list[Path]] = {}
+    out: list[str] = []
+    scripts: dict[str, list[str]] = {}
+
     for path in html_files():
-        for body in SCRIPT_RE.findall(read(path)):
+        for attrs, body in SCRIPT_RE.findall(read(path)):
+            if "src=" in attrs.lower():
+                # An external script has no body to compare. It also cannot be
+                # checked by this harness at all, so it is named rather than
+                # skipped: silence here is the thing being guarded against.
+                out.append(f"{rel(path)}: loads an external script "
+                           f"(<script{attrs}>). This harness cannot compare it, "
+                           "and a standalone document should not need one.")
+                continue
             if body.strip():
-                scripts.setdefault(body, []).append(path)
+                where = rel(path) + (f" (<script{attrs}>)" if attrs.strip() else "")
+                scripts.setdefault(body, []).append(where)
 
-    if len(scripts) <= 1:
-        return []
-
-    out = ["inline scripts under docs/ have diverged; they are meant to be one "
-           "widget, pasted rather than shared:"]
-    for body, paths in scripts.items():
-        first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
-        out.append(f"    {len(body)} chars in {', '.join(rel(p) for p in paths)}"
-                   f"  — starts {first[:60]!r}")
-    out.append("    Extract it, or make them identical again. A comment asking "
-               "for this is what failed last time.")
+    if len(scripts) > 1:
+        out.append("inline scripts under docs/ have diverged; they are meant "
+                   "to be one widget, pasted rather than shared:")
+        for body, wheres in scripts.items():
+            first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
+            out.append(f"    {len(body)} chars in {', '.join(wheres)}"
+                       f"  — starts {first[:60]!r}")
+        out.append("    Extract it, or make them identical again. A comment "
+                   "asking for this is what failed last time.")
     return out
 
 
 DECL_RE = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
+MEDIA_RE = re.compile(r"@media\s*\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", re.I)
+BASE_ROOT_RE = re.compile(r":root\s*\{")
+THEME_RE = r':root\s*\[\s*data-theme\s*=\s*["\']{name}["\']\s*\]\s*\{{'
 
 
-def block_after(text: str, opener: str) -> str | None:
-    """The brace-balanced body following `opener`. None if absent."""
-    i = text.find(opener)
-    if i < 0:
-        return None
-    i = text.index("{", i)
-    depth, j = 0, i
-    while j < len(text):
-        if text[j] == "{":
+class BlockNotFound(Exception):
+    """Distinct from an empty block, so the error names the real problem."""
+
+
+def body_at(text: str, brace_index: int) -> str:
+    """Brace-balanced body starting at an opening brace.
+
+    Aware of strings and `/* */` comments, because a declaration like
+    `content: "{"` would otherwise desync the counter and silently truncate
+    the block — producing a short token map and a page of invented mismatches.
+    Not a CSS parser; this is the smallest thing that is not wrong here.
+    """
+    depth, i, n = 0, brace_index, len(text)
+    quote = None
+    while i < n:
+        c = text[i]
+        if quote:
+            if c == "\\":
+                i += 2
+                continue
+            if c == quote:
+                quote = None
+        elif c in "\"'":
+            quote = c
+        elif c == "/" and text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        elif c == "{":
             depth += 1
-        elif text[j] == "}":
+        elif c == "}":
             depth -= 1
             if depth == 0:
-                return text[i + 1:j]
-        j += 1
-    return None
+                return text[brace_index + 1:i]
+        i += 1
+    raise BlockNotFound("unbalanced braces from this selector to end of file")
 
 
-def tokens(block: str | None) -> dict[str, str]:
-    if block is None:
-        return {}
-    return {m.group(1): m.group(2).strip() for m in DECL_RE.finditer(block)}
+def media_spans(text: str) -> list[tuple[int, int]]:
+    spans = []
+    for m in MEDIA_RE.finditer(text):
+        open_i = text.index("{", m.end())
+        try:
+            spans.append((open_i, open_i + len(body_at(text, open_i))))
+        except BlockNotFound:
+            pass
+    return spans
+
+
+def block(text: str, pattern: re.Pattern[str], *, outside_media: bool = False) -> str:
+    """The body of the first block matching `pattern`. Raises if absent.
+
+    Selector matching is by regex rather than by literal indented text. The
+    first version searched for the string "\\n  :root {", so a reformat to four
+    spaces would have made the base block un-findable, the token map empty, and
+    every comparison a mismatch — sending the reader hunting a colour bug that
+    did not exist. Failing loudly is right; failing loudly about the wrong
+    thing is not.
+    """
+    spans = media_spans(text) if outside_media else []
+    for m in pattern.finditer(text):
+        i = m.end() - 1  # the opening brace
+        if any(lo < i < hi for lo, hi in spans):
+            continue
+        return body_at(text, i)
+    raise BlockNotFound(f"no block matching {pattern.pattern!r}")
+
+
+def tokens(css: str) -> dict[str, str]:
+    return {m.group(1): m.group(2).strip() for m in DECL_RE.finditer(css)}
 
 
 def check_theme_parity() -> list[str]:
@@ -185,35 +291,52 @@ def check_theme_parity() -> list[str]:
     A viewer's OS preference arrives as `prefers-color-scheme`; their explicit
     toggle arrives as `data-theme` on the root and has to beat the media query.
     That means the palette is written twice per theme, by construction — and
-    nothing stops the two from drifting apart, at which case flipping the
+    nothing stops the two from drifting apart, at which point flipping the
     toggle changes colours that flipping the OS setting does not.
 
     The two documents use opposite conventions — one has a dark base with a
     light media query, the other the reverse — so this checks the invariant
-    that holds either way rather than a fixed layout.
+    that holds either way rather than a fixed layout. That they already differ
+    in that way is why it is written like this.
     """
     out = []
     for path in html_files():
         text = read(path)
-        base = tokens(block_after(text, "\n  :root {"))
-        themed = {
-            name: tokens(block_after(text, f':root[data-theme="{name}"]'))
-            for name in ("light", "dark")
-        }
-        if not any(themed.values()):
-            continue
-
-        media = None
+        themed = {}
         for name in ("light", "dark"):
-            if f"@media (prefers-color-scheme: {name})" in text:
-                media = (name, tokens(block_after(
-                    text, f"@media (prefers-color-scheme: {name})")))
+            pattern = re.compile(THEME_RE.format(name=name))
+            try:
+                themed[name] = tokens(block(text, pattern))
+            except BlockNotFound:
+                themed[name] = None
+
+        if not any(v for v in themed.values()):
+            continue  # a document with no theme toggle has nothing to disagree
+
+        media = MEDIA_RE.search(text)
         if media is None:
             out.append(f"{rel(path)}: has data-theme blocks but no "
                        "prefers-color-scheme query; the OS preference is ignored")
             continue
+        media_name = media.group(1).lower()
+        other = "dark" if media_name == "light" else "light"
 
-        media_name, media_tokens = media
+        try:
+            media_tokens = tokens(block(text, MEDIA_RE_BRACE))
+        except BlockNotFound as exc:
+            out.append(f"{rel(path)}: could not read the "
+                       f"prefers-color-scheme:{media_name} block ({exc}). "
+                       "This is a failure of this check, not a colour mismatch.")
+            continue
+
+        for name in (media_name, other):
+            if themed.get(name) is None:
+                out.append(f"{rel(path)}: could not read the "
+                           f'data-theme="{name}" block. This is a failure of '
+                           "this check, not a colour mismatch.")
+        if themed.get(media_name) is None or themed.get(other) is None:
+            continue
+
         # 1. media(T) and [data-theme=T] are the same theme, reached two ways.
         for key in sorted(set(media_tokens) | set(themed[media_name])):
             a, b = media_tokens.get(key), themed[media_name].get(key)
@@ -227,7 +350,13 @@ def check_theme_parity() -> list[str]:
         # 2. The base :root carries the other theme; [data-theme=other] must
         #    restate it exactly. Only tokens the theme block names are compared,
         #    because :root also holds type and layout tokens that are not themed.
-        other = "dark" if media_name == "light" else "light"
+        try:
+            base = tokens(block(text, BASE_ROOT_RE, outside_media=True))
+        except BlockNotFound as exc:
+            out.append(f"{rel(path)}: could not read the base :root block "
+                       f"({exc}). This is a failure of this check, not a "
+                       "colour mismatch.")
+            continue
         for key, want in sorted(themed[other].items()):
             got = base.get(key)
             if got != want:
@@ -236,6 +365,11 @@ def check_theme_parity() -> list[str]:
                     f'{want!r} under data-theme="{other}" — these are the same '
                     "theme and must match")
     return out
+
+
+# The media query and its opening brace, so `block` can find the body.
+MEDIA_RE_BRACE = re.compile(
+    r"@media\s*\(\s*prefers-color-scheme\s*:\s*\w+\s*\)\s*\{", re.I)
 
 
 def main() -> int:
