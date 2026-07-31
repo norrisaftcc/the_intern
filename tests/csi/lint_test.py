@@ -19,7 +19,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from floor_test import unanchored_branches  # noqa: E402
+from floor_test import (  # noqa: E402
+    base_version,
+    declares_shared_base,
+    load_docs,
+    unanchored_branches,
+)
 
 # (pattern, expected flagged branches, what it pins down)
 CASES: list[tuple[str, list[str], str]] = [
@@ -50,8 +55,57 @@ CASES: list[tuple[str, list[str], str]] = [
 ]
 
 
+# (text, declares?, version, what it pins down)
+SHARED_BASE_CASES: list[tuple[str, bool, str | None, str]] = [
+    ("**This file is the shared base.** Base version **2026-07-31.1**.",
+     True, "2026-07-31.1", "the real declaration with a valid stamp"),
+    ("**This file is the shared base**, and it is deliberately basic.",
+     True, None, "declaration without a stamp is the failing case"),
+    ("Base version 2026-07-31.1 appears here with no claim.",
+     False, "2026-07-31.1", "a stamp with no claim is a no-op, not a finding"),
+    ("This is not intended as a shared base.",
+     False, None, "prose mentioning the phrase must not trip the check"),
+    ("Unlike our shared base pattern, this file stands alone.",
+     False, None, "the words in passing are not a declaration"),
+    ("**This file is the shared base.** Base version **2026-13-45.1**.",
+     True, None, "date-shaped but not a date - month 13, day 45"),
+    ("**This file is the shared base.** Base version **2026-02-30.1**.",
+     True, None, "date-shaped but not a date - February 30"),
+    ("**this file is the shared base.** Base version 2026-07-31.2",
+     True, "2026-07-31.2", "the declaration match is case-insensitive"),
+]
+
+
+def check_shared_base_cases() -> list[str]:
+    out = []
+    for text, declares, version, why in SHARED_BASE_CASES:
+        got_declares = declares_shared_base(text)
+        got_version = base_version(text)
+        if got_declares != declares:
+            out.append(f"{why}\n    declares_shared_base expected {declares}, got {got_declares}")
+        if got_version != version:
+            out.append(f"{why}\n    base_version expected {version!r}, got {got_version!r}")
+    return out
+
+
+def check_roster_is_not_loaded() -> list[str]:
+    """docs/csi/ROSTER.md says "a shared base" while describing the arrangement.
+
+    It passes today because load_docs() globs .claude/ only. That is a fact
+    about the glob, not about the check, so it is pinned here rather than left
+    to have happened to work.
+    """
+    loaded = {d.path.name for d in load_docs()}
+    if "ROSTER.md" in loaded:
+        return ["ROSTER.md is now loaded by the harness; it describes the shared-base "
+                "arrangement without being one, so it will false-positive"]
+    return []
+
+
 def main() -> int:
     failures = []
+    failures.extend(check_shared_base_cases())
+    failures.extend(check_roster_is_not_loaded())
     for pattern, expected, why in CASES:
         got = unanchored_branches(pattern)
         if got != expected:
@@ -63,7 +117,10 @@ def main() -> int:
             print(f"  {line}")
         return 1
 
-    print(f"lint test: {len(CASES)} regex-parser cases behave")
+    print(
+        f"lint test: {len(CASES)} regex-parser cases and "
+        f"{len(SHARED_BASE_CASES)} shared-base cases behave"
+    )
     return 0
 
 

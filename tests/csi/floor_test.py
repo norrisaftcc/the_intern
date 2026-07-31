@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parents[2]
@@ -572,7 +573,38 @@ def check_baseline() -> list[Finding]:
     return findings
 
 
-BASE_VERSION_RE = re.compile(r"[Bb]ase version\s*\**\s*(\d{4}-\d{2}-\d{2}\.\d+)")
+# The declaration, anchored. An earlier version matched the bare words
+# "shared base" anywhere in a document, which would have fired on a sentence
+# like "this is not intended as a shared base" - a lint on prose, tripped by
+# prose. It also meant docs/csi/ROSTER.md was one glob change away from being
+# a false positive: it contains the phrase while describing the arrangement
+# rather than declaring itself one.
+SHARED_BASE_RE = re.compile(r"\*\*This file is the shared base", re.I)
+BASE_VERSION_RE = re.compile(r"[Bb]ase version\s*\**\s*(\d{4})-(\d{2})-(\d{2})\.(\d+)")
+
+
+def declares_shared_base(text: str) -> bool:
+    """True only for the specific bolded declaration, not the words in passing."""
+    return bool(SHARED_BASE_RE.search(text))
+
+
+def base_version(text: str) -> str | None:
+    """The stamp, if it is present and is a real date.
+
+    `2026-13-45.1` is date-shaped and is not a date. A stamp exists to be a
+    reference point for a later divergence, and a garbage one is a reference
+    to nothing - so this validates rather than pattern-matching, and returns
+    None for anything that will not survive being read as a calendar date.
+    """
+    m = BASE_VERSION_RE.search(text)
+    if not m:
+        return None
+    year, month, day, serial = m.groups()
+    try:
+        date(int(year), int(month), int(day))
+    except ValueError:
+        return None
+    return f"{year}-{month}-{day}.{serial}"
 
 
 def check_shared_base(doc: Doc) -> None:
@@ -595,14 +627,47 @@ def check_shared_base(doc: Doc) -> None:
     from inside a single checkout, and it is not a substitute for the other.
     """
     text = "\n".join(doc.body_lines)
-    if "shared base" not in text.lower():
+    if not declares_shared_base(text):
         return
-    if not BASE_VERSION_RE.search(text):
-        doc.fail(
+    if base_version(text) is None:
+        if BASE_VERSION_RE.search(text):
+            doc.fail(
+                "shared-base",
+                "base version is date-shaped but not a real date · "
+                "a stamp that cannot be read as a calendar date is a reference to nothing",
+            )
+        else:
+            doc.fail(
+                "shared-base",
+                "claims to be a shared base but states no base version · "
+                "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
+            )
+
+
+def check_base_versions_agree(docs: list[Doc]) -> list[Finding]:
+    """Shared-base documents in one repository should carry the same stamp.
+
+    The cheapest drift is not cross-repository at all: it is editing one of two
+    files delivered together and bumping only its stamp. That needs no network
+    to catch.
+
+    If two shared-base files ever want different versions on purpose, this
+    check is what has to be changed to allow it - which is the point. A
+    deliberate divergence should cost a deliberate edit.
+    """
+    stamped = [(d, base_version("\n".join(d.body_lines))) for d in docs]
+    stamped = [(d, v) for d, v in stamped if v and declares_shared_base("\n".join(d.body_lines))]
+    versions = {v for _, v in stamped}
+    if len(versions) <= 1:
+        return []
+    listing = ", ".join(f"{d.path.name}={v}" for d, v in sorted(stamped, key=lambda x: x[0].path.name))
+    return [
+        Finding(
+            stamped[0][0].path,
             "shared-base",
-            "claims to be a shared base but states no base version · "
-            "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
+            f"shared-base documents disagree on base version · {listing}",
         )
+    ]
 
 
 def check_document(doc: Doc) -> None:
@@ -640,6 +705,9 @@ def run_roster(verbose: bool) -> int:
     for name, paths in by_name.items():
         if len(paths) > 1:
             findings.append(Finding(paths[1], "identity", f"name {name!r} is claimed by {len(paths)} documents"))
+
+    # Across documents rather than within one, so it runs here.
+    findings.extend(check_base_versions_agree(docs))
 
     for finding in findings:
         print(f"FAIL {finding}")
