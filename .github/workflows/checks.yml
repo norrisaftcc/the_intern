@@ -51,6 +51,9 @@ jobs:
       - name: CSI floor test
         run: python3 tests/csi/floor_test.py
 
+      - name: Case-file lint does not have the bug it lints for
+        run: python3 tests/csi/lint_test.py
+
       - name: Documented examples match their cases
         run: python3 tests/csi/examples_test.py
 

@@ -342,9 +342,14 @@ def unanchored_branches(pattern: str) -> list[str]:
     A rule stated in prose is the kind this repository keeps failing.
     """
     body = re.sub(r"^\(\?[a-zA-Z]+\)", "", pattern)
-    branches, depth, current = [], 0, []
+    branches: list[str] = []
+    current: list[str] = []
+    depth = 0
+    in_class = False
+    class_start = -1
     escaped = False
-    for ch in body:
+
+    for index, ch in enumerate(body):
         if escaped:
             current.append(ch)
             escaped = False
@@ -353,11 +358,31 @@ def unanchored_branches(pattern: str) -> list[str]:
             current.append(ch)
             escaped = True
             continue
-        if ch in "([":
+
+        # Inside a character class every metacharacter is literal, including
+        # `(`, `)` and `|`. Counting `[)]` as a group close - which an earlier
+        # version of this function did - silently moved the alternation
+        # boundaries and made the whole check pass on patterns it should have
+        # flagged. A linter with the bug it lints for.
+        if in_class:
+            # `]` is literal when it is the first character of the class,
+            # optionally after a leading `^`.
+            first = index == class_start + 1 or (
+                index == class_start + 2 and body[class_start + 1] == "^"
+            )
+            if ch == "]" and not first:
+                in_class = False
+            current.append(ch)
+            continue
+
+        if ch == "[":
+            in_class = True
+            class_start = index
+        elif ch == "(":
             depth += 1
-        elif ch in ")]":
+        elif ch == ")":
             depth -= 1
-        if ch == "|" and depth == 0:
+        elif ch == "|" and depth == 0:
             branches.append("".join(current))
             current = []
             continue

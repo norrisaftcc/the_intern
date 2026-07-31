@@ -12,10 +12,21 @@
 # carried the literal fallback string, or nothing, and the check was green.
 #
 # The rule this file now follows: every failure is loud. No `//` alternative
-# stands in for an error. `//` survives in exactly one place below - defaulting
-# a genuinely optional field (`.pull_request.body`, which is null when a
-# contributor writes no description) - and it is labelled there so it is not
-# mistaken for the pattern this repair removed.
+# stands in for an error.
+#
+# `//` survives in three places, all of them defaulting a genuinely optional
+# value rather than absorbing a failure, and each is labelled where it appears:
+#
+#   .pull_request.title // ""        a title is optional at the API level
+#   .pull_request.body  // ""        null when a contributor writes no description
+#   .stop_reason        // "absent"  a display value, read but never branched on
+#                                    as though absence meant success
+#
+# This comment said "exactly one place" until 2026-07-31 and named only the
+# body. It was wrong when written - title and body are two - and drifted
+# further when the stop_reason check was added. Corrected in place rather than
+# quietly, because a file whose entire argument is that comments and code must
+# not diverge is the last file that gets to fix its own comment silently.
 #
 # SECURITY, carried across from the trusted pattern at
 # /workspace/algorithm-shodann/.github/workflows/shodann.yml:
@@ -115,12 +126,12 @@ jobs:
           # Contributor-authored text, read from the event payload on disk.
           # It never becomes part of this script.
           #
-          # The `// ""` here is the one legitimate use of the operator in this
-          # file: `.pull_request.body` is null when a contributor writes no
-          # description, and an absent optional field is not an error. It is
-          # NOT standing in front of a failure the way the extraction step's
+          # Two of the three legitimate uses of `//` in this file. Both
+          # default a genuinely optional field: a pull request may carry no
+          # description, and an absent optional field is not an error. Neither
+          # stands in front of a failure the way the extraction step's
           # fallback did. Compare with the API check below, which has no
-          # fallback at all.
+          # fallback at all. The third is `.stop_reason // "absent"`.
           jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH" > pr_title.txt
           jq -r '.pull_request.body  // ""' "$GITHUB_EVENT_PATH" > pr_body.txt
 
@@ -145,6 +156,17 @@ jobs:
           # traversal of a diff already capped at 200KB.
           git diff --name-only "$BASE_SHA"..."$HEAD_SHA" > changed_files.txt
           git diff "$BASE_SHA"..."$HEAD_SHA" > full_diff.txt
+
+          # A merge commit, a submodule bump, or a force-push that lands the
+          # same tree all fire `synchronize` with nothing to read. Paying for
+          # a model call to review an empty diff is the same waste the key
+          # check was moved first to avoid. Recorded as a notice rather than
+          # posted, because "there was nothing to review" is not a finding and
+          # a comment saying so is noise on the thread.
+          if [ ! -s full_diff.txt ]; then
+            echo "::notice::Diff is empty against the merge base. No review requested."
+            echo "empty" > review_skipped.flag
+          fi
 
           if [ "$(wc -c < full_diff.txt)" -gt "$MAX_DIFF_BYTES" ]; then
             # `head -c` cuts on bytes, not codepoints, so a diff containing
@@ -223,6 +245,8 @@ jobs:
           } >> review_prompt.txt
 
       - name: Request the review
+        # Skipped when the diff is empty; there is nothing to send.
+        if: hashFiles('review_skipped.flag') == ''
         env:
           # Secret name carried unchanged from the version this replaces.
           # Whether it is actually set on this repository is not visible from
@@ -387,6 +411,8 @@ jobs:
           echo "Review received: $(wc -c < review.md) bytes."
 
       - name: Post review comment
+        # No diff means no review, and no comment about not having one.
+        if: hashFiles('review_skipped.flag') == ''
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
