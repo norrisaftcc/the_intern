@@ -78,7 +78,6 @@ Create two distinct prompt tiers following the beta/gamma fork pattern:
      triggered once in its lifetime and was deleted on 2026-07-31. Corrected
      here so filling in this template does not recreate the same defect. -->
 
-
 ### Model Classification
 ```python
 FLASH_MODELS = [

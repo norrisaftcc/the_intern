@@ -92,11 +92,22 @@ jobs:
   # caught it. Turning main green is the point of this change, not a side
   # effect of it.
   #
-  # TO REVIVE: write projects/algocratic-futures/Dockerfile, replace the echo
-  # step with a deployment that deploys, and only then remove `if: false`. The
-  # order matters - restoring the trigger first gets a red main back, and
-  # fixing only the Dockerfile makes a job that deploys nothing report success,
-  # which is worse than the failure it replaced. See #39.
+  # TO REVIVE, in this order:
+  #   1. write projects/algocratic-futures/Dockerfile
+  #   2. replace the echo step with a deployment that deploys
+  #   3. restore `if: github.ref == 'refs/heads/main'`
+  #   4. check `needs: test` still expresses what you want - it is inert while
+  #      this job is disabled, and it is the kind of edge that gets read as
+  #      load-bearing because it survived
+  #
+  # The order matters. Restoring the trigger first gets a red main back.
+  # Fixing only the Dockerfile makes a job that deploys nothing report success,
+  # which is worse than the failure it replaced.
+  #
+  # This list is duplicated in #39 on purpose. A revival procedure that lives
+  # only in a comment attached to the job it describes disappears the moment
+  # someone deletes the job, which is one of the two outcomes this stub is
+  # waiting on.
   deploy:
     needs: test
     runs-on: ubuntu-latest
