@@ -127,8 +127,15 @@ def run_case(program: str, body: dict, tmp: Path) -> tuple[int, str]:
 
 def main() -> int:
     if shutil.which("jq") is None:
-        print("skip: jq is not installed")
-        return 0
+        # Not a skip. A skip that exits 0 reports success while testing
+        # nothing, which is the `//` fallback this whole test exists because
+        # of, rewritten in Python. The workflow under test runs jq; if jq is
+        # missing, this test has no opinion and must not pretend otherwise.
+        print("extraction test: FAILED")
+        print("  jq is not installed, so the extraction was not exercised.")
+        print("  This is a failure, not a skip - the test cannot pass without")
+        print("  running the program it exists to check.")
+        return 1
 
     program = extraction_program()
     failures = []

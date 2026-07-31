@@ -106,6 +106,12 @@ jobs:
           jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH" > pr_title.txt
           jq -r '.pull_request.body  // ""' "$GITHUB_EVENT_PATH" > pr_body.txt
 
+          # Two walks of the same range. Deriving the file list from the diff
+          # already computed means parsing `+++ b/` lines, which is wrong for
+          # renames, deletions and binary hunks - a fragile parser to save one
+          # cheap traversal on a diff already capped at 200KB. Kept as two
+          # calls on purpose, noted so the next reader does not have to decide
+          # again whether it was an oversight.
           git diff --name-only "$BASE_SHA".."$HEAD_SHA" > changed_files.txt
           git diff "$BASE_SHA".."$HEAD_SHA" > full_diff.txt
 
@@ -316,12 +322,22 @@ jobs:
                       | if length == 0 then null else join("\n\n") end'
           # EXTRACTION_PROGRAM_END
 
-          if ! jq -e -r "$EXTRACTION" response.json > review.md; then
+          # Written to a temp file first. `jq -e -r` still prints the literal
+          # string "null" to stdout before setting its exit code, so writing
+          # straight to review.md left a file containing "null" behind on the
+          # failure path. Harmless while the next line is `exit 1`, and a trap
+          # for whoever reorders these lines later.
+          if ! jq -e -r "$EXTRACTION" response.json > review_raw.md; then
             echo "::error::HTTP 200, but the response carried no text block."
             echo "::error::Blocks present: $(jq -r '[.content[].type] | join(", ")' response.json)"
             cat response.json
             exit 1
           fi
+
+          # Only now does review.md exist. Nothing downstream can read a
+          # half-written or "null" file, because on every failing path above
+          # this line was never reached.
+          mv review_raw.md review.md
 
           if [ ! -s review.md ]; then
             echo "::error::The model returned an empty review."
@@ -380,13 +396,25 @@ jobs:
           fi
 
           # Edit the previous review in place rather than stacking a new one.
-          # Every push posted a fresh comment before this, so a branch that
-          # takes several rounds buries the conversation under its own review
+          # Every push posted a fresh comment before this, so a branch taking
+          # several rounds buries the conversation under its own review
           # history - and the older ones describe code that no longer exists,
-          # which is worse than noise. The fallback covers older `gh` builds
-          # without `--edit-last`, and the first run on a pull request, where
-          # there is nothing to edit yet.
-          gh pr comment "$PR_NUMBER" --body-file comment.md --edit-last \
+          # which is worse than noise.
+          #
+          # `--edit-last` is scoped to the author, not to the thread. From
+          # cli/cli, pkg/cmd/pr/comment/comment.go:
+          #
+          #     "edit-last", false, "Edit the last comment of the current user"
+          #
+          # Checked rather than assumed, because the failure mode if it were
+          # chronological is silently overwriting a human's comment - worse
+          # than the stacking it replaces. The token here is
+          # `github.token`, so "current user" is github-actions[bot] and a
+          # human comment is never a candidate.
+          #
+          # `--create-if-none` covers the first run on a pull request. The
+          # bare fallback covers a `gh` too old to have either flag.
+          gh pr comment "$PR_NUMBER" --body-file comment.md --edit-last --create-if-none \
             || gh pr comment "$PR_NUMBER" --body-file comment.md
 
       # If anything above failed, the pull request hears about it and the job

@@ -1,0 +1,55 @@
+# The repository's own checks, wired in.
+#
+# Both of these existed and neither ran. `floor_test.py` gates the whole CSI
+# persona roster and has been cited as verification in pull request after pull
+# request while only ever being run by hand. `extraction_test.py` was written
+# to catch a guard-disarm that had already nearly happened once, and was
+# committed without anything to invoke it.
+#
+# That is the failure this repository has been documenting all along: a check
+# that exists, looks like coverage, and never executes. `agent_tier_tests.yml`
+# filters on paths that do not exist. `deploy.yml` spent a year at a path
+# Actions does not read. `ai-code-review.yml` reported success for a year
+# without producing a review. This file is the same defect, caught in our own
+# hands rather than in the archive.
+#
+# Deliberately separate from `deploy.yml`. That workflow carries an unresolved
+# question about what the backend gate is; these two checks are settled and
+# should not wait on it.
+
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Both tests are standard library only, by design. No pip step, nothing
+      # to pin, nothing to go stale. `jq` is present on ubuntu-latest and the
+      # extraction test now fails rather than skips if it ever is not.
+      - name: jq is available
+        run: jq --version
+
+      - name: CSI floor test
+        run: python3 tests/csi/floor_test.py
+
+      - name: Review extraction guard
+        run: python3 tests/workflow/extraction_test.py
