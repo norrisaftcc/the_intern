@@ -401,7 +401,14 @@ def declarations(css: str) -> list[str]:
     return parts
 
 
-MEDIA_RE = re.compile(r"@media\s*\(\s*prefers-color-scheme\s*:\s*(\w+)\s*\)", re.I)
+# Compound queries, either ordering. The first version required
+# `@media (prefers-color-scheme: X)` in isolation, so
+# `@media (prefers-color-scheme: dark) and (min-width: 600px)` was detected but
+# unreadable - a false FAIL on valid CSS - and the same query with the terms
+# reversed reported "no prefers-color-scheme query" while looking straight at
+# one. Neither was the silent skip it was reported as, and both were wrong.
+MEDIA_RE = re.compile(
+    r"@media[^{]*?prefers-color-scheme\s*:\s*(\w+)[^{]*", re.I)
 BASE_ROOT_RE = re.compile(r":root\s*\{")
 THEME_RE = r':root\s*\[\s*data-theme\s*=\s*["\']{name}["\']\s*\]\s*\{{'
 
@@ -486,6 +493,7 @@ class ThemeBlocks:
                              f'the data-theme="{name}" block', quiet=True)
             for name in ("light", "dark")
         }
+        self.errors += self.presence_errors()
 
     def _read(self, pattern, what: str, *, outside_media: bool = False,
               quiet: bool = False) -> dict[str, str] | None:
@@ -502,6 +510,39 @@ class ThemeBlocks:
                     f"not be read ({exc}). This is a failure of this check, "
                     "not a colour mismatch.")
             return None
+
+    def presence_errors(self) -> list[str]:
+        """Structure that is present in the text but unreadable must be LOUD.
+
+        The strict selector patterns are how blocks get read, and anything they
+        do not match falls out of detection entirely - which is a silent skip,
+        the failure this file exists to remove. Two shapes were found that way:
+        `:root[data-theme="light"], .foo { }` and `html[data-theme="light"]`
+        both parsed as "this document does not theme" and exited 0.
+
+        Rather than widening the patterns until they cover every selector
+        anyone might write - which is how the script regex accumulated three
+        defects - this asks a cruder question: does the substring appear? If it
+        does and nothing was read, say so. A checker that cannot read a
+        construct should refuse it, not ignore it.
+        """
+        out = []
+        if ("prefers-color-scheme" in self.text.lower()
+                and self.media is None):
+            out.append(
+                f"{rel(self.path, self.repo)}: the text contains "
+                "`prefers-color-scheme` but no block this check can read. It "
+                "is themed in a shape this harness does not understand, which "
+                "is refused rather than skipped.")
+        for name in ("light", "dark"):
+            if (re.search(rf'data-theme\s*=\s*["\']?{name}', self.text, re.I)
+                    and self.themed.get(name) is None):
+                out.append(
+                    f"{rel(self.path, self.repo)}: the text contains "
+                    f'`data-theme={name}` but no `:root[data-theme="{name}"]` '
+                    "block this check can read - a combined selector or a "
+                    "different element scope. Refused rather than skipped.")
+        return out
 
     def overrides(self) -> dict[str, dict[str, str]]:
         """The readable override blocks, labelled as a reader would name them."""
@@ -714,7 +755,7 @@ def check_theme_parity(all_blocks: list[ThemeBlocks], repo: Path) -> list[str]:
 
 # The media query and its opening brace, so `block` can find the body.
 MEDIA_RE_BRACE = re.compile(
-    r"@media\s*\(\s*prefers-color-scheme\s*:\s*\w+\s*\)\s*\{", re.I)
+    r"@media[^{]*?prefers-color-scheme\s*:\s*\w+[^{]*\{", re.I)
 
 
 # Deliberately NOT anchored on `run:`. That version matched a single-line
@@ -737,6 +778,40 @@ YAML_COMMENT_RE = re.compile(r"^\s*#.*$", re.M)
 BOARD = "docs/big-board.html"
 
 
+def run_blocks(yaml_text: str) -> str:
+    """Just the shell of every `run:` step, joined.
+
+    The counter used to scan the whole file with only whole-line comments
+    stripped, so a step named `run tests/ghost_test.py nightly` was read as an
+    uncountable invocation and failed the build over prose. Restricting the
+    scan to what actually executes is the difference between "this workflow
+    runs a test I cannot count" and "this workflow mentions a filename".
+
+    Not a YAML parser - it understands `run:` inline and `run: |` block
+    scalars, which is what checks.yml uses. Anything else contributes nothing,
+    and the uncountable-step guard below is what makes that loud.
+    """
+    out, lines = [], yaml_text.splitlines()
+    i = 0
+    while i < len(lines):
+        m = re.match(r"^(\s*)(?:-\s*)?run:\s*(.*)$", lines[i])
+        if not m:
+            i += 1
+            continue
+        indent, inline = len(m.group(1)), m.group(2).strip()
+        if inline in ("|", ">", "|-", ">-", "|+", ">+"):
+            i += 1
+            while i < len(lines):
+                if lines[i].strip() and (len(lines[i]) - len(lines[i].lstrip())) <= indent:
+                    break
+                out.append(lines[i])
+                i += 1
+        else:
+            out.append(inline)
+            i += 1
+    return "\n".join(out)
+
+
 def check_board_harness_count(repo: Path) -> list[str]:
     """The board's headline harness count must match what CI actually runs.
 
@@ -755,7 +830,7 @@ def check_board_harness_count(repo: Path) -> list[str]:
     if not board.exists() or not workflow.exists():
         return []
 
-    body = YAML_COMMENT_RE.sub("", read(workflow))
+    body = run_blocks(YAML_COMMENT_RE.sub("", read(workflow)))
     actual = sorted(set(HARNESS_STEP_RE.findall(body)))
 
     # Anything under tests/ that this counter cannot attribute to a

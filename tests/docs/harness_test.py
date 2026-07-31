@@ -31,14 +31,20 @@ Standard library only.
 from __future__ import annotations
 
 import contextlib
+import importlib.util
 import io
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import artifact_test as A  # noqa: E402
+# Loaded by explicit path rather than by putting a directory on sys.path and
+# hoping this is the `artifact_test` that gets found. There is only one today;
+# the import should not depend on that staying true.
+_SPEC = importlib.util.spec_from_file_location(
+    "artifact_test", Path(__file__).resolve().parent / "artifact_test.py")
+A = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(A)
 
 
 def doc(style: str = "", body: str = "<p>x</p>", script: str | None = None,
@@ -68,6 +74,28 @@ GOOD_CSS = """
   :root[data-theme="light"] { --ground: #EFEEE9; --ink: #15181D; }
   :root[data-theme="dark"] { --ground: #0E1116; --ink: #E7E9ED; }
 """
+
+COMPOUND_CSS = (
+    "  :root { --ground: #0E1116; }\n"
+    "  @media (prefers-color-scheme: light) and (min-width: 600px) {\n"
+    "    :root { --ground: #EFEEE9; }\n  }\n"
+    '  :root[data-theme="light"] { --ground: #EFEEE9; }\n'
+    '  :root[data-theme="dark"] { --ground: #0E1116; }\n'
+)
+
+COMPOUND_REVERSED_CSS = COMPOUND_CSS.replace(
+    "(prefers-color-scheme: light) and (min-width: 600px)",
+    "(min-width: 600px) and (prefers-color-scheme: light)")
+
+COMBINED_SELECTOR_CSS = (
+    "  :root { --ground: #0E1116; }\n"
+    '  :root[data-theme="light"], .foo { --ground: #EFEEE9; }\n'
+)
+
+OTHER_ELEMENT_CSS = (
+    "  :root { --ground: #0E1116; }\n"
+    '  html[data-theme="light"] { --ground: #EFEEE9; }\n'
+)
 
 WIDGET = "<script>\n  var a = 1;\n</script>"
 
@@ -214,6 +242,20 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
     ("no documents at all is a failure, not a pass",
      {}, True, "no HTML under docs/"),
 
+    ("a compound prefers-color-scheme query is read, not falsely failed",
+     {"a.html": doc(COMPOUND_CSS)}, False, ""),
+
+    ("a compound query with the terms reversed is read too",
+     {"a.html": doc(COMPOUND_REVERSED_CSS)}, False, ""),
+
+    # Both of these exited 0 before the presence guard: the selector patterns
+    # did not match, so the document read as "does not theme" and was skipped.
+    ("a combined data-theme selector is refused, not skipped",
+     {"a.html": doc(COMBINED_SELECTOR_CSS)}, True, "Refused rather than skipped"),
+
+    ("data-theme on a different element is refused, not skipped",
+     {"a.html": doc(OTHER_ELEMENT_CSS)}, True, "Refused rather than skipped"),
+
     ("an uncommon named colour still has to theme",
      {"a.html": doc(GOOD_CSS.replace("--ink: #E7E9ED;\n    --sans",
                                      "--ink: #E7E9ED;\n    --brand: rebeccapurple;\n    --sans"))},
@@ -308,6 +350,12 @@ BOARD_CASES: list[tuple[str, str, str, bool, str]] = [
      "steps:\n  - run: python3 tests/a_test.py\n  - run: pytest tests/b_test.py\n",
      True, "cannot read"),
 
+    ("a test path named in a step name is not counted as an invocation",
+     doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
+     "steps:\n  - name: run tests/ghost_test.py nightly\n"
+     "    run: python3 tests/a_test.py\n",
+     False, ""),
+
     ("a path named only in a comment is not counted",
      doc(GOOD_CSS, body='<div data-harness-count="1">x</div>'),
      "steps:\n  # python3 tests/ghost_test.py used to run here\n"
@@ -372,6 +420,10 @@ def check_colour_list_is_complete() -> list[str]:
     """
     n = len(A.CSS_NAMED_COLOURS)
     out = []
+    # 148 = the CSS Color Module Level 4 <named-color> keyword set. Not a
+    # magic number: 147 from CSS Color 3, plus `rebeccapurple` added in Level
+    # 4. `transparent` and `currentColor` are separate keywords and are handled
+    # beside the set, not in it.
     if n != 148:
         out.append(f"CSS_NAMED_COLOURS has {n} entries, not 148. If a keyword "
                    "was added to the CSS spec, update the count with it; if one "

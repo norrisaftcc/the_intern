@@ -1080,7 +1080,11 @@
         var on = t === tab;
         t.setAttribute('aria-selected', on ? 'true' : 'false');
         t.tabIndex = on ? 0 : -1;
-        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+        // Guarded: a tab whose aria-controls does not resolve would otherwise
+        // throw here and take the whole widget with it. Degrade to a tab that
+        // does nothing rather than a page where no tab works.
+        var panel = document.getElementById(t.getAttribute('aria-controls'));
+        if (panel) { panel.hidden = !on; }
       });
       if (moveFocus) tab.focus();
     }
