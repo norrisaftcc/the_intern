@@ -71,12 +71,20 @@ He is the control, which means two things the others do not carry:
   because enforcement that degrades to permissive is the advisory boundary it
   replaced.
 
-  **What it does not cover, so "structural" is not overclaimed.** Kevin holds
-  `Bash`, and `echo x > path` is a write the hook never sees. Closing that
-  means taking Bash away, which he needs to read git history — the reason he
-  exists. So the hook closes the Write path and narrows the gap; it does not
-  seal it. The honest description is "enforced where it can be", which is what
-  the principle says in the first place.
+  **What it does not cover, so "structural" is not overclaimed.** Two gaps,
+  both of them downstream of Kevin holding `Bash`:
+
+  1. `echo x > path` is a write the hook never sees.
+  2. A symlink he creates under `artifacts/forensics/` pointing outside it
+     passes the check, because the hook resolves paths textually and does not
+     follow links.
+
+  Closing either means taking `Bash` away, which he needs to read git history —
+  the reason he exists. So the hook closes the `Write` path and narrows the
+  gap; it does not seal it. The honest description is **"enforced where it can
+  be"**, which is what the principle says in the first place. An earlier draft
+  argued gap 2 away on the grounds that the directory is repository-controlled;
+  that argument does not survive him being able to create the symlink himself.
 
 RED clearance is the structural half of that. He cannot spawn agents, and per
 `clearance.py` the RED band speaks "only about movement," never absolute

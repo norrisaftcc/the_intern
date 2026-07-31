@@ -56,10 +56,17 @@ def deny(reason: str) -> None:
 def resolve(base: PurePosixPath, target: str) -> PurePosixPath:
     """Normalise `..` textually. No filesystem access, so nothing to race.
 
-    Symlinks are deliberately not followed: a symlink inside
-    artifacts/forensics/ pointing elsewhere would still resolve as inside it
-    here. Anything landing in that directory is repository-controlled and
-    reviewed, so the exposure is the same as committing the file directly.
+    Symlinks are deliberately not followed, and that is a real gap rather
+    than a neutral choice. A symlink inside artifacts/forensics/ pointing
+    outside it resolves as inside it here, and the write escapes.
+
+    The first version of this comment argued the directory is
+    repository-controlled and reviewed, so the exposure equals committing the
+    file. That does not survive Kevin holding Bash: he can create the symlink
+    himself, in the same session, before the Write. Following symlinks would
+    close it at the cost of a filesystem stat on every write and a
+    time-of-check-to-time-of-use race of its own. Neither is obviously right,
+    so the gap is written down instead of argued away. See ROSTER.md.
     """
     path = base / target if not target.startswith("/") else PurePosixPath(target)
     parts: list[str] = []

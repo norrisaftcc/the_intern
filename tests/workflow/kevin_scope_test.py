@@ -170,28 +170,42 @@ def check_wiring() -> list[str]:
     return out
 
 
-def check_kevin_has_no_uncovered_write_tool() -> list[str]:
-    """His tool list must not gain a write tool the matcher does not cover.
+# What Kevin holds today. Pinned rather than inspected for write-capability,
+# because "is this tool write-capable" is not decidable from its name — the
+# previous version tried, guessed at a set of {Update, Patch, Create}, and
+# ended up as a function whose every branch returned no findings. A check that
+# cannot fail is the defect this repository keeps writing.
+#
+# Bash is in this set and is the known gap: `echo x > path` is a write the hook
+# never sees. It is listed here so that removing it, or adding anything beside
+# it, trips this test and forces the coverage question to be asked again.
+KEVIN_TOOLS = {"Read", "Grep", "Glob", "Bash", "Write"}
 
-    He holds Write and no other today. This is what notices if that changes
-    without the matcher changing with it.
+TOOLS_RE = re.compile(r"^tools:\s*(.+)$", re.M)
+
+
+def check_kevin_tool_list_is_unchanged() -> list[str]:
+    """Fail if his tool list moves at all.
+
+    The hook covers Write, Edit, MultiEdit and NotebookEdit. Whether that is
+    still sufficient depends entirely on what he holds, so any change to the
+    list is a prompt to re-check rather than something to pass silently.
     """
-    line = next((l for l in read_utf8(KEVIN).splitlines() if l.startswith("tools:")), None)
-    if line is None:
-        return ["no tools: line in .claude/agents/kevin.md"]
-    tools = {t.strip() for t in line.split(":", 1)[1].split(",")}
-    uncovered = sorted(t for t in tools if t in WRITE_TOOLS)
-    # Every write-capable tool he holds must be in WRITE_TOOLS, which the
-    # matcher check above proves the hook covers. A tool outside that set that
-    # can still write is the gap worth failing on.
-    unknown_writers = sorted(t for t in tools
-                             if t not in WRITE_TOOLS
-                             and t in {"Update", "Patch", "Create"})
-    if unknown_writers:
-        return [f"kevin holds write-capable tool(s) the hook does not know "
-                f"about: {unknown_writers}"]
-    if not uncovered:
-        return []  # holds no write tool at all; hook is moot but harmless
+    match = TOOLS_RE.search(read_utf8(KEVIN))
+    if not match:
+        return ["no `tools:` line in .claude/agents/kevin.md, or it is not a "
+                "single-line comma list — this check cannot read it, which is "
+                "a failure rather than a pass"]
+    tools = {t.strip() for t in match.group(1).split(",") if t.strip()}
+    if tools != KEVIN_TOOLS:
+        added = sorted(tools - KEVIN_TOOLS)
+        removed = sorted(KEVIN_TOOLS - tools)
+        return [
+            "kevin's tool list changed; re-check that the hook still covers "
+            f"how he can write. added={added} removed={removed}. "
+            "If the change is intended, update KEVIN_TOOLS here and say in "
+            "ROSTER.md what the hook does and does not now reach."
+        ]
     return []
 
 
@@ -203,7 +217,7 @@ def main() -> int:
 
     failures = check_wiring()
     failures += check_unparseable_payload()
-    failures += check_kevin_has_no_uncovered_write_tool()
+    failures += check_kevin_tool_list_is_unchanged()
 
     for payload, expect_denied, why in CASES:
         got = decision(payload)
