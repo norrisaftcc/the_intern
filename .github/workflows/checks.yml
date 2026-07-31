@@ -58,6 +58,28 @@ jobs:
       - name: jq is available
         run: jq --version
 
+      # A workflow file outside .github/workflows/ at the repository root is
+      # inert - Actions does not read it. That is a path convention, not a
+      # guarantee, and this repository has been bitten by it twice. deploy.yml
+      # sat at projects/algocratic-futures/.github/workflows/ for about a year
+      # and went live the moment it moved. A duplicate ai-code-review.yml sat
+      # beside it holding an injectable heredoc until it was deleted.
+      #
+      # Both were found by reading history. This finds the next one on the
+      # commit that adds it.
+      - name: No workflow files outside the root
+        run: |
+          set -euo pipefail
+          stray=$(git ls-files '*/.github/workflows/*')
+          if [ -n "$stray" ]; then
+            echo "::error::Workflow files tracked outside .github/workflows/ at the root."
+            echo "$stray"
+            echo "Actions does not read these. They are inert until someone moves"
+            echo "them, and then they are live with whatever they contain."
+            exit 1
+          fi
+          echo "No workflow files outside the repository root."
+
       - name: CSI floor test
         run: python3 tests/csi/floor_test.py
 

@@ -26,13 +26,15 @@ next was visible. The pin was the second, not the first. The fourth was inside
 the gate itself and could not be seen until the third cleared.
 
 1. **`deploy.yml` was at a path GitHub Actions does not read** — for about a
-   year. It lived at `projects/algocratic-futures/.github/workflows/`, a
-   directory that no longer exists: its last occupant, a duplicate
-   `ai-code-review.yml`, was removed 2026-07-31. Actions
-   only reads `.github/workflows/` at the repository root. Commit `166102f`
+   year. It lived at `projects/algocratic-futures/.github/workflows/`, and
+   Actions only reads `.github/workflows/` at the repository root. Commit `166102f`
    relocated it on 2025-08-20, but on a feature branch; a first-parent walk of
    `origin/main` shows it reached the default branch only at merge `161a3e5` on
    2026-07-30. Until that merge the workflow could not run at all.
+
+   That directory no longer exists. Its last occupant, a duplicate
+   `ai-code-review.yml`, was deleted 2026-07-31, and `checks.yml` now fails
+   any pull request that tracks a workflow file outside the repository root.
 
 2. **`requirements.txt` pinned a version that was never published.**
    `adventurelib==2.0.0` — PyPI's releases stop at `1.2.1`. `pip install` failed
