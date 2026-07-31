@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/kevin-forensics-only.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checking Kevin's write scope"
+          }
+        ]
+      }
+    ]
+  }
+}

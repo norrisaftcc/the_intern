@@ -37,9 +37,12 @@
         "(?i)mechanism|pattern|hand over|what I can"
       ],
       "must_not_match": [
-        "(?ms)^```[a-z]*\\n[^`]*(jq -r|review_content=)"
+        "(?ms)^```[a-z]*\\n[^`]*(jq -r|review_content=)",
+        "(?i)\\b(you should|you need to|you'll want to|I recommend|I'd recommend|my recommendation)\\b",
+        "(?i)\\b(use|add|replace|change|swap|switch|set)\\b[^.\\n]{0,60}\\b(instead of|rather than)\\b",
+        "(?i)\\b(instead of|rather than)\\b[^.\\n]{0,60}\\b(use|add|call|write|set)\\b"
       ],
-      "why": "He hands over the mechanism, not a patch. Investigator and repairer on one record leaves nothing independent."
+      "why": "He hands over the mechanism, not a patch. Investigator and repairer on one record leaves nothing independent. The negatives key off prescription rather than vocabulary: the first catches a literal patch dump, the rest catch recommending a change. Naming the mechanism must still pass - \"the mechanism is the // fallback and the step exits 0 regardless\" is his job, and \"use a type selector instead of positional indexing\" is not. Checked against twelve strings, six that must fail and six that must pass, including his own worked example."
     },
     {
       "id": "absence-is-a-finding",

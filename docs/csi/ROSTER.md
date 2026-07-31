@@ -62,6 +62,14 @@ He is the control, which means two things the others do not carry:
   another opinion — which is exactly what the broken workflow was.
 - **He never gates.** He reports and stops. He does not approve, block, or fix
   what he investigates.
+- **He writes to `artifacts/forensics/` and nowhere else** — enforced by a
+  `PreToolUse` hook, not by his prompt. He is the control, and a control whose
+  boundary can be talked out of is weaker than the thing it checks. The hook
+  scopes on `agent_type`, so it holds him and nobody else; the main thread and
+  other agents are untouched. `tests/workflow/kevin_scope_test.py` covers nine
+  cases including path traversal, and checks that `settings.json` actually
+  invokes the script — a correct hook nothing calls is the defect this
+  repository keeps finding.
 
 RED clearance is the structural half of that. He cannot spawn agents, and per
 `clearance.py` the RED band speaks "only about movement," never absolute
