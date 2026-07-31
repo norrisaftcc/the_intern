@@ -10,14 +10,20 @@ otherwise be lost.
 - `backend/test_liza_flash_compatibility.py`
 - `backend/test_trigger.py`
 
-These are the gate. **They have never run.** Not "run and passed", not "run and
-failed" — never executed, by anything, once.
+These are the gate. **They run, and they pass.** As of 2026-07-31.
+
+**Corrected 2026-07-31.** This section said "They have never run. Not 'run and
+passed', not 'run and failed' — never executed, by anything, once." That was
+true when written and is not true now, so it is replaced rather than left
+standing with a note beside it.
 
 **Corrected 2026-07-30** after Kevin's first case file,
 `artifacts/forensics/2026-07-30-walking-the-beat.md`. This section previously
 said "two independent reasons." That was incomplete and the order was wrong.
-There are **three obstacles in series**, and each had to be cleared before the
-next was visible. The pin was the second, not the first.
+
+There were **four obstacles in series**, and each had to be cleared before the
+next was visible. The pin was the second, not the first. The fourth was inside
+the gate itself and could not be seen until the third cleared.
 
 1. **`deploy.yml` was at a path GitHub Actions does not read** — for about a
    year. It lived at `projects/algocratic-futures/.github/workflows/`. Actions
@@ -30,14 +36,32 @@ next was visible. The pin was the second, not the first.
    `adventurelib==2.0.0` — PyPI's releases stop at `1.2.1`. `pip install` failed
    before any test step. Repaired by `2dedf02`, 2026-07-30.
 
-3. **`deploy.yml` points at a directory that does not exist.** It runs
+3. **`deploy.yml` pointed at a directory that does not exist.** It ran
    `cd projects/algocratic-futures/backend` then `pytest tests/`. There is no
-   `backend/tests/`. The step exits 4 — a usage error, not a test result. This
-   is the first obstacle anyone has been in a position to see, and it is current.
+   `backend/tests/`. The step exited 4 — a usage error, not a test result.
+   **Cleared 2026-07-31.**
+
+   Pytest was never going to work here whatever the path. These files hold zero
+   `def test_*` functions, and the one `class Test*` is `TestResult`, a
+   dataclass pytest declines to collect. Correcting the path would have moved
+   exit 4 to exit 5, *no tests collected*, and told nobody anything. They are
+   scripts with a `main()` returning pass or fail, which is the convention
+   `CLAUDE.md` documents. The workflow now runs them that way.
+
+4. **A hardcoded path inside the gate itself.** With obstacle 3 cleared,
+   `test_liza_flash_compatibility.py` ran its five checks, passed all five,
+   printed `READY FOR DEPLOYMENT`, and then exited 1 writing its results to
+   `/Users/norrisa/Documents/dev/github/the_intern/...` — one laptop, absent
+   everywhere else. The next line already printed the *relative* filename, so
+   the absolute path was a slip rather than a decision. **Cleared 2026-07-31**
+   by writing beside the file instead of beside whoever runs it.
+
+   This was the fourth obstacle in the series and it was invisible until the
+   third cleared, exactly like the three before it.
 
 Separately, and not in that series:
 
-4. **`agent_tier_tests.yml` filters on paths that do not exist.** Its `paths:` are
+5. **`agent_tier_tests.yml` filters on paths that do not exist.** Its `paths:` are
    `agent_prompts_tiered.py`, `test_agent_tiers.py`, `agent_system.py` — matched
    from the repository root. These files are at
    `projects/algocratic-futures/backend/`. The filter never matches, so the
@@ -45,9 +69,17 @@ Separately, and not in that series:
    `pip install -r requirements.txt` with no working directory, and there is no
    requirements file at the repository root.
 
-**Not wired here on purpose.** Where to queue these safely is undecided. A gate
-that has never run is an unknown, not a pass, and switching it on without
-choosing where it runs would convert an unknown into a red wall.
+**Now wired, and it runs.** As of 2026-07-31 `deploy.yml` runs
+`test_agent_tiers.py` and `test_liza_flash_compatibility.py` as scripts on
+every push and pull request, on Python 3.9 and 3.11. Both exit 0. The gate that
+had never executed once now executes, and what it reports is a result rather
+than a usage error.
+
+`test_trigger.py` is deliberately not in that list. It is three comment lines
+with no code, written to poke the review workflow into running. It is named
+`test_*` and it is not a test, and running it would have contributed a
+guaranteed exit 0 that measured nothing — which is the shape of the whole
+problem this file records.
 
 ## The spike — the MUD, for AlgoCon in May
 

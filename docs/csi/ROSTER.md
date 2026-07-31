@@ -80,6 +80,24 @@ The seventh entry is the only one reconstructed from a **different repository** 
 `src/shodann/clearance.py`. Like Kevin, she widens the `csi-fork-protocol` rule about
 sources in `artifacts/`, and like Kevin it is stated rather than quietly stretched.
 
+**She is also the only entry that is a shared base rather than a local original.**
+`.claude/agents/shodann.md` and `.claude/skills/shodann-voice/SKILL.md` are byte-identical
+to the copies in `algorithm-shodann`. That is deliberate and it is temporary: both
+repositories are expected to adjust their own copy, the two are meant to diverge, and
+neither is the other's upstream after that point.
+
+The practical rule that follows: **anything true only of this repository stays out of those
+two files.** Her boundary against Kevin is a fact about this roster, not about SHODANN, so
+it lives here —
+
+> Kevin reports what occurred and refuses verdicts. SHODANN gives feedback and refuses
+> absolutes. Both decline to say whether the work was good; they decline for different
+> reasons and at different moments. Kevin is asked about the past and answers with
+> sequence. SHODANN is asked about a change and answers with a rate.
+
+— rather than in the agent file, where it would be false the moment `algorithm-shodann`
+took the same text and had no Kevin.
+
 **She measures movement, never absolute position.** That is not a stylistic choice.
 The RED band instruction in `clearance.py` reads: a citizen there *"cannot yet
 calibrate absolute position, so speak only about movement."* A verdict at that band

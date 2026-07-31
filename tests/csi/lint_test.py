@@ -19,7 +19,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from floor_test import unanchored_branches  # noqa: E402
+from floor_test import (  # noqa: E402
+    Doc,
+    base_version,
+    check_base_versions_agree,
+    declares_shared_base,
+    load_docs,
+    read_stamp,
+    unanchored_branches,
+)
 
 # (pattern, expected flagged branches, what it pins down)
 CASES: list[tuple[str, list[str], str]] = [
@@ -50,8 +58,106 @@ CASES: list[tuple[str, list[str], str]] = [
 ]
 
 
+# (text, declares?, version, what it pins down)
+SHARED_BASE_CASES: list[tuple[str, bool, str | None, str]] = [
+    ("**This file is the shared base.** Base version **2026-07-31.1**.",
+     True, "2026-07-31.1", "the real declaration with a valid stamp"),
+    ("**This file is the shared base**, and it is deliberately basic.",
+     True, None, "declaration without a stamp is the failing case"),
+    ("Base version 2026-07-31.1 appears here with no claim.",
+     False, None, "a stamp with no claim is a no-op; the stamp belongs to a declaration"),
+    ("**This file is the shared base.**\n\nUnrelated prose.\n\nBase version 2026-07-31.1",
+     True, None, "a stamp in a later paragraph is not a stamp on the declaration"),
+    ("**This file is the shared base.** Base version **2026-07-31.1**.\n"
+     "Continuing the same paragraph.",
+     True, "2026-07-31.1", "same paragraph, wrapped across a single newline, still counts"),
+    ("This is not intended as a shared base.",
+     False, None, "prose mentioning the phrase must not trip the check"),
+    ("Unlike our shared base pattern, this file stands alone.",
+     False, None, "the words in passing are not a declaration"),
+    ("**This file is the shared base.** Base version **2026-13-45.1**.",
+     True, None, "date-shaped but not a date - month 13, day 45"),
+    ("**This file is the shared base.** Base version **2026-02-30.1**.",
+     True, None, "date-shaped but not a date - February 30"),
+    ("**this file is the shared base.** Base version 2026-07-31.2",
+     True, "2026-07-31.2", "the declaration match is case-insensitive"),
+]
+
+
+def check_shared_base_cases() -> list[str]:
+    out = []
+    for text, declares, version, why in SHARED_BASE_CASES:
+        got_declares = declares_shared_base(text)
+        got_version = base_version(text)
+        if got_declares != declares:
+            out.append(f"{why}\n    declares_shared_base expected {declares}, got {got_declares}")
+        if got_version != version:
+            out.append(f"{why}\n    base_version expected {version!r}, got {got_version!r}")
+    return out
+
+
+def _doc(name: str, text: str) -> Doc:
+    """A synthetic document, enough of one for the shared-base checks."""
+    return Doc(Path(name), "agent", {"name": name.split(".")[0]}, text.splitlines(), 1)
+
+
+BASE = "**This file is the shared base.** Base version **{v}**."
+
+
+def check_agreement_fixtures() -> list[str]:
+    """check_base_versions_agree, on synthetic docs rather than the real repo.
+
+    It was previously verified only by editing the real files and watching the
+    output - which proves it works today and would not notice a refactor that
+    quietly stopped it working. The two-document case is the one that matters:
+    with a single shared-base file the function is trivially satisfied, so a
+    fixture with two is what keeps it honest.
+    """
+    out = []
+    cases = [
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-07-31.1"))], 0,
+         "two documents agreeing is not a finding"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-08-01.1"))], 1,
+         "two documents disagreeing is one finding"),
+        ([("a.md", BASE.format(v="2026-07-31.1"))], 0,
+         "a lone shared-base document cannot disagree with anything"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", "No claim here. Base version 2026-08-01.1")], 0,
+         "a stamp with no claim is not compared"),
+        ([("a.md", BASE.format(v="2026-07-31.1")),
+          ("b.md", BASE.format(v="2026-13-45.1"))], 0,
+         "an unreadable stamp is check_shared_base's finding, not this one"),
+        ([], 0, "no documents at all is not a finding"),
+    ]
+    for docs, expected, why in cases:
+        findings = check_base_versions_agree([_doc(n, b) for n, b in docs])
+        if len(findings) != expected:
+            out.append(f"{why}\n    expected {expected} finding(s), got "
+                       f"{len(findings)}: {[f.detail for f in findings]}")
+    return out
+
+
+def check_roster_is_not_loaded() -> list[str]:
+    """docs/csi/ROSTER.md says "a shared base" while describing the arrangement.
+
+    It passes today because load_docs() globs .claude/ only. That is a fact
+    about the glob, not about the check, so it is pinned here rather than left
+    to have happened to work.
+    """
+    loaded = {d.path.name for d in load_docs()}
+    if "ROSTER.md" in loaded:
+        return ["ROSTER.md is now loaded by the harness; it describes the shared-base "
+                "arrangement without being one, so it will false-positive"]
+    return []
+
+
 def main() -> int:
     failures = []
+    failures.extend(check_shared_base_cases())
+    failures.extend(check_agreement_fixtures())
+    failures.extend(check_roster_is_not_loaded())
     for pattern, expected, why in CASES:
         got = unanchored_branches(pattern)
         if got != expected:
@@ -63,7 +169,11 @@ def main() -> int:
             print(f"  {line}")
         return 1
 
-    print(f"lint test: {len(CASES)} regex-parser cases behave")
+    print(
+        f"lint test: {len(CASES)} regex-parser cases and "
+        f"{len(SHARED_BASE_CASES)} shared-base cases behave, "
+        "agreement fixtures included"
+    )
     return 0
 
 

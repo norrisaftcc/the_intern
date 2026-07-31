@@ -21,6 +21,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path, PurePosixPath
 
 REPO = Path(__file__).resolve().parents[2]
@@ -169,6 +170,14 @@ def read_utf8(path: Path) -> str:
 
 
 def load_docs() -> list[Doc]:
+    """Every document the floor applies to.
+
+    Scoped to .claude/ deliberately. docs/csi/ROSTER.md describes the
+    shared-base arrangement without being one, so widening this glob to docs/
+    would make check_shared_base fire on it. lint_test.py pins that coupling
+    from the other end - if you change this glob, that test is where the
+    breakage will surface and why.
+    """
     docs: list[Doc] = []
     for path in sorted(AGENT_DIR.glob("*.md")):
         fm, body, offset = parse_frontmatter(read_utf8(path), path)
@@ -572,6 +581,137 @@ def check_baseline() -> list[Finding]:
     return findings
 
 
+# The declaration, anchored. An earlier version matched the bare words
+# "shared base" anywhere in a document, which would have fired on a sentence
+# like "this is not intended as a shared base" - a lint on prose, tripped by
+# prose. It also meant docs/csi/ROSTER.md was one glob change away from being
+# a false positive: it contains the phrase while describing the arrangement
+# rather than declaring itself one.
+SHARED_BASE_RE = re.compile(r"\*\*This file is the shared base", re.I)
+# `\b` matters: without it "Database version 2026-01-01.1" matches, because
+# "base" sits inside "Database". Case-insensitive throughout, because "Base
+# Version" with a capital V was silently reported as *absent* - a stamp that
+# is present and unreadable is worse than one that is missing, since the
+# message sends the reader looking for the wrong thing.
+BASE_VERSION_RE = re.compile(
+    r"\bbase version\s*\**\s*(\d{4})-(\d{2})-(\d{2})\.(\d+)", re.I
+)
+
+
+def declares_shared_base(text: str) -> bool:
+    """True only for the specific bolded declaration, not the words in passing."""
+    return bool(SHARED_BASE_RE.search(text))
+
+
+def read_stamp(text: str) -> tuple[str | None, str]:
+    """The base version stamp, and why it is absent when it is.
+
+    Returns (version, reason). The reason lets the caller report "no stamp"
+    and "stamp that is not a date" differently without re-running the regex to
+    find out which happened.
+
+    The stamp is searched for in the paragraph that carries the declaration,
+    not across the whole document. A file can legitimately quote another file's
+    stamp in prose - this one does, in its own docstrings - and a stamp that
+    merely appears somewhere is not a stamp *on* the declaration.
+    """
+    claim = SHARED_BASE_RE.search(text)
+    if not claim:
+        return None, "no-claim"
+
+    # From the declaration to the end of its paragraph.
+    tail = text[claim.start():]
+    para_end = tail.find("\n\n")
+    paragraph = tail if para_end == -1 else tail[:para_end]
+
+    m = BASE_VERSION_RE.search(paragraph)
+    if not m:
+        return None, "absent"
+    year, month, day, serial = m.groups()
+    try:
+        date(int(year), int(month), int(day))
+    except ValueError:
+        return None, "not-a-date"
+    return f"{year}-{month}-{day}.{serial}", "ok"
+
+
+def base_version(text: str) -> str | None:
+    """The stamp, if it is present on the declaration and is a real date.
+
+    `2026-13-45.1` is date-shaped and is not a date. A stamp exists to be a
+    reference point for a later divergence, and a garbage one is a reference
+    to nothing - so this validates rather than pattern-matching.
+    """
+    version, _ = read_stamp(text)
+    return version
+
+
+def check_shared_base(doc: Doc) -> None:
+    """A document claiming to be a shared base must say which version.
+
+    Some documents here are byte-identical copies of a file in another
+    repository, kept that way on purpose and expected to diverge later. That
+    arrangement rots in a predictable way: someone edits one copy, the claim
+    "the same text lives in both" silently becomes false, and a later reader
+    cannot tell which differences were deliberate.
+
+    A version stamp does not prevent the edit and is not meant to. It gives the
+    divergence a reference point - "this started from base 2026-07-31.1" - so
+    an intentional adjustment reads differently from drift. The stamp is
+    enforced here rather than asked for in prose, because this repository has
+    a long record of prose rules going unmet.
+
+    A cross-repository byte comparison is what would actually catch drift, and
+    CI in one repository cannot do it. This is the part that can be checked
+    from inside a single checkout, and it is not a substitute for the other.
+    """
+    text = "\n".join(doc.body_lines)
+    version, reason = read_stamp(text)
+    if reason in ("no-claim", "ok"):
+        return
+    if reason == "not-a-date":
+        doc.fail(
+            "shared-base",
+            "base version is date-shaped but not a real date · "
+            "a stamp that cannot be read as a calendar date is a reference to nothing",
+        )
+    else:
+        doc.fail(
+            "shared-base",
+            "claims to be a shared base but states no base version beside the claim · "
+            "add `Base version YYYY-MM-DD.N` so a later divergence has a reference point",
+        )
+
+
+def check_base_versions_agree(docs: list[Doc]) -> list[Finding]:
+    """Shared-base documents in one repository should carry the same stamp.
+
+    The cheapest drift is not cross-repository at all: it is editing one of two
+    files delivered together and bumping only its stamp. That needs no network
+    to catch.
+
+    If two shared-base files ever want different versions on purpose, this
+    check is what has to be changed to allow it - which is the point. A
+    deliberate divergence should cost a deliberate edit.
+    """
+    stamped = []
+    for d in docs:
+        version, reason = read_stamp("\n".join(d.body_lines))
+        if reason == "ok" and version:
+            stamped.append((d, version))
+    versions = {v for _, v in stamped}
+    if len(versions) <= 1:
+        return []
+    listing = ", ".join(f"{d.path.name}={v}" for d, v in sorted(stamped, key=lambda x: x[0].path.name))
+    return [
+        Finding(
+            stamped[0][0].path,
+            "shared-base",
+            f"shared-base documents disagree on base version · {listing}",
+        )
+    ]
+
+
 def check_document(doc: Doc) -> None:
     """Checks a document answers from its own text alone.
 
@@ -585,6 +725,7 @@ def check_document(doc: Doc) -> None:
     check_token_economy(doc, secs)
     check_notation(doc, secs)
     check_examples(doc, secs)
+    check_shared_base(doc)
 
 
 def run_roster(verbose: bool) -> int:
@@ -606,6 +747,9 @@ def run_roster(verbose: bool) -> int:
     for name, paths in by_name.items():
         if len(paths) > 1:
             findings.append(Finding(paths[1], "identity", f"name {name!r} is claimed by {len(paths)} documents"))
+
+    # Across documents rather than within one, so it runs here.
+    findings.extend(check_base_versions_agree(docs))
 
     for finding in findings:
         print(f"FAIL {finding}")
