@@ -214,6 +214,24 @@ CASES: list[tuple[str, dict[str, str], bool, str]] = [
     ("no documents at all is a failure, not a pass",
      {}, True, "no HTML under docs/"),
 
+    ("<div/> is not self-closing in HTML and must not balance the stack",
+     {"a.html": doc(GOOD_CSS, body="<div/><p>x</p>")}, True, "never closed"),
+
+    ("<circle/> inside <svg> is self-closing and must balance",
+     {"a.html": doc(GOOD_CSS, body='<svg viewBox="0 0 2 2"><circle r="1"/>'
+                                   '<line x1="0" y1="0" x2="1" y2="1"/></svg>')},
+     False, ""),
+
+    ("identical bodies under <script> and <script type=module> are not one widget",
+     {"a.html": doc(GOOD_CSS, script=WIDGET),
+      "b.html": doc(GOOD_CSS, script='<script type="module">\n  var a = 1;\n</script>')},
+     True, "diverged"),
+
+    ("a > inside an attribute value does not truncate the script body",
+     {"a.html": doc(GOOD_CSS, script='<script data-x=">">\n  var a = 1;\n</script>'),
+      "b.html": doc(GOOD_CSS, script=WIDGET)},
+     False, ""),
+
     # A media query with no opening brace used to raise a bare ValueError out
     # of media_spans and kill main() with a traceback - in the file whose whole
     # promise is a path and a reason instead of a stack.

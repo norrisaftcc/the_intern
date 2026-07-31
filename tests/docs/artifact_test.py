@@ -65,13 +65,26 @@ DOCS = REPO / "docs"
 #
 # This asserts the one thing that is load-bearing: that parents[2] lands where
 # this file says it does. It cannot be satisfied by coincidence.
-_EXPECTED = REPO / "tests" / "docs" / "artifact_test.py"
-if Path(__file__).resolve() != _EXPECTED:
-    raise SystemExit(
-        f"artifact_test.py: parents[2] resolves to {REPO}, which would put this "
-        f"file at {_EXPECTED} - it is actually at {Path(__file__).resolve()}. "
-        "The file moved; fix the depth rather than letting the checks run "
-        "against the wrong tree.")
+def check_layout() -> list[str]:
+    """parents[2] must land where this file says this file is.
+
+    Derived from __file__ rather than from REPO, which harness_test.py
+    reassigns to a scratch directory - so this asks about the source tree
+    either way.
+
+    Called from main() rather than run at import. A bare `raise SystemExit` at
+    module level executes as a side effect of `import`, which works today only
+    because the one importer does so from the real path; coverage, a linter or
+    a doc tool would trip it.
+    """
+    here = Path(__file__).resolve()
+    if here != here.parents[2] / "tests" / "docs" / "artifact_test.py":
+        return [f"parents[2] resolves to {here.parents[2]}, which would put "
+                f"this file at {here.parents[2] / 'tests/docs/artifact_test.py'} "
+                f"- it is actually at {here}. The file moved; fix the depth "
+                "rather than letting the checks run against the wrong tree."]
+    return []
+
 
 # Elements with no closing tag. A hand-written list rather than a dependency;
 # if one is missing the parser reports a false unclosed tag, which fails loudly
@@ -80,6 +93,11 @@ VOID = {
     "area", "base", "br", "col", "embed", "hr", "img", "input",
     "link", "meta", "param", "source", "track", "wbr",
 }
+
+# Subtrees parsed as foreign content, where XML rules apply and `<circle/>`
+# genuinely self-closes. Outside these, a trailing slash is ignored by the
+# parser and the element stays open.
+FOREIGN = {"svg", "math"}
 
 
 class ArtifactDocument(HTMLParser):
@@ -126,8 +144,22 @@ class ArtifactDocument(HTMLParser):
             self.stack.append((tag, self.getpos()[0]))
 
     def handle_startendtag(self, tag: str, attrs) -> None:
+        """`<x/>` self-closes only where the parser is in foreign content.
+
+        In HTML proper the slash is ignored and a closing tag is still
+        required, so the previous version - which popped the stack for any
+        self-closed tag - let a genuinely unclosed `<div/>` parse clean here
+        and wrong in a browser.
+
+        Inside an <svg> or <math> subtree the rules are XML's and `<circle/>`
+        really does close. The first fix for the <div/> case did not make that
+        distinction and reported thirty unclosed tags in the calibration
+        brief's inline SVG - correct about HTML, wrong about the document.
+        Caught by the real documents, again.
+        """
         self.handle_starttag(tag, attrs)
-        if self.stack and self.stack[-1][0] == tag:
+        foreign = any(t in FOREIGN for t, _ in self.stack[:-1])
+        if foreign and self.stack and self.stack[-1][0] == tag:
             self.stack.pop()
 
     def handle_endtag(self, tag: str) -> None:
@@ -209,7 +241,13 @@ def check_parses() -> list[str]:
 #
 # So this agrees with the parser rather than approximating it. The genuine edge
 # is the double-escaped state a `<!--` opens, which nothing here uses.
-SCRIPT_RE = re.compile(r"<script\b([^>]*)>(.*?)</script>", re.S | re.I)
+# The attribute group understands quoting. `[^>]*` was the first version, and
+# `data-x=">"` ended it mid-attribute - which did not fail, it collected a
+# script whose body began `">` and compared that. Silently wrong is the mode
+# this file exists to remove.
+SCRIPT_RE = re.compile(
+    r"""<script\b((?:[^>"']|"[^"]*"|'[^']*')*)>(.*?)</script>""", re.S | re.I)
+TYPE_RE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]+)""", re.I)
 
 
 def script_problem(attrs: str, body: str) -> str | None:
@@ -260,16 +298,23 @@ def check_shared_widget() -> list[str]:
                 out.append(f"{rel(path)}: an inline script {problem}")
                 continue
             if body.strip():
+                # Keyed on (type, body), not body alone. A module script runs
+                # in strict mode, is deferred, and does not leak to global
+                # scope - identical text under `<script>` and
+                # `<script type="module">` is not the same widget. Grouping on
+                # body alone would have traded the false pass this check just
+                # fixed for its mirror image.
+                kind = (TYPE_RE.search(attrs) or [None, "classic"])[1].lower()
                 where = rel(path) + (f" (<script{attrs}>)" if attrs.strip() else "")
-                scripts.setdefault(body, []).append(where)
+                scripts.setdefault((kind, body), []).append(where)
 
     if len(scripts) > 1:
         out.append("inline scripts under docs/ have diverged; they are meant "
                    "to be one widget, pasted rather than shared:")
-        for body, wheres in scripts.items():
+        for (kind, body), wheres in scripts.items():
             first = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
-            out.append(f"    {len(body)} chars in {', '.join(wheres)}"
-                       f"  — starts {first[:60]!r}")
+            out.append(f"    {len(body)} chars, type={kind}, in "
+                       f"{', '.join(wheres)}  — starts {first[:60]!r}")
         out.append("    Extract it, or make them identical again. A comment "
                    "asking for this is what failed last time.")
     return out
@@ -682,7 +727,8 @@ def main() -> int:
     all_blocks = [ThemeBlocks(path) for path in files]
     block_errors = [err for blocks in all_blocks for err in blocks.errors]
 
-    failures = (check_parses() + check_shared_widget() + block_errors
+    failures = (check_layout() + check_parses() + check_shared_widget()
+                + block_errors
                 + check_theme_parity(all_blocks)
                 + check_every_colour_themes(all_blocks)
                 + check_board_harness_count())
