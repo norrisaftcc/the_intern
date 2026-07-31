@@ -133,3 +133,13 @@ jobs:
       # prose, only structure.
       - name: Documents under docs/ are checked, not vouched for
         run: python3 tests/docs/artifact_test.py
+
+      # The harness above was verified by hand, off CI, with the evidence
+      # written into a pull request description - which is the shape it exists
+      # to stop. Against the two real documents it can only exercise the
+      # branches those two happen to trigger, so a future edit reintroducing a
+      # false pass would be caught by nothing. It has already shipped three:
+      # a false positive, a false negative, and two checks deferring to each
+      # other. Those cases are committed here.
+      - name: The docs harness has a harness
+        run: python3 tests/docs/harness_test.py

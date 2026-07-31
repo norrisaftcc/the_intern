@@ -53,6 +53,16 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 DOCS = REPO / "docs"
 
+# The parents[2] above is a depth assumption, and a wrong one would not raise -
+# it would point DOCS somewhere with no HTML in it, and main()'s empty-set
+# branch would report "no HTML under docs/" as though the documents had been
+# deleted. Anchored so a moved file says what actually happened.
+if not (REPO / ".git").exists() and not (REPO / "tests" / "docs").is_dir():
+    raise SystemExit(
+        f"artifact_test.py: computed repository root {REPO} does not look like "
+        "one. This file moved and parents[2] no longer reaches the root; fix "
+        "the depth rather than letting the checks run against the wrong tree.")
+
 # Elements with no closing tag. A hand-written list rather than a dependency;
 # if one is missing the parser reports a false unclosed tag, which fails loudly
 # rather than passing quietly.
@@ -87,8 +97,17 @@ class ArtifactDocument(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs) -> None:
         a = {k.lower(): (v or "") for k, v in attrs}
-        if tag == "meta" and a.get("charset", "").strip().lower() == "utf-8":
-            self.charset = True
+        # Both spellings. <meta charset> is the HTML5 form and what both
+        # current documents use; the http-equiv form is still valid and a
+        # document using it is correct, so rejecting it would be this file
+        # failing a correct input - which it has already done once, over
+        # <!doctype html>.
+        if tag == "meta":
+            if a.get("charset", "").strip().lower() == "utf-8":
+                self.charset = True
+            elif (a.get("http-equiv", "").strip().lower() == "content-type"
+                  and "utf-8" in a.get("content", "").lower()):
+                self.charset = True
         if tag == "body":
             self.body = True
         if tag == "html":
@@ -362,51 +381,15 @@ def check_every_colour_themes() -> list[str]:
     """
     out = []
     for path in html_files():
-        text = read(path)
-        if not has_theming(text):
+        blocks = ThemeBlocks(path)
+        out += blocks.errors
+        if not blocks.themes or blocks.base is None:
             continue
-
-        # Reported here rather than deferred. The previous version said
-        # `except BlockNotFound: continue  # check_theme_parity reports this`,
-        # which was true only when a data-theme block also existed -
-        # check_theme_parity short-circuits before reading the base when there
-        # is none. So a document with a prefers-color-scheme query, no
-        # data-theme block, and an unreadable base :root passed BOTH checks and
-        # printed "every colour themes, both routes agree". Reproduced as a
-        # real file before this was changed, not reasoned about.
-        #
-        # Two functions each deferring to the other, through a comment
-        # promising the other would catch it. That is the third time in this
-        # file that a comment has been asked to do a check's job, and it is
-        # what the file is about.
-        try:
-            base = tokens(block(text, BASE_ROOT_RE, outside_media=True))
-        except BlockNotFound as exc:
-            out.append(f"{rel(path)}: this document themes, but its base :root "
-                       f"could not be read ({exc}). This is a failure of this "
-                       "check, not a colour mismatch.")
-            continue
-
-        overrides: dict[str, dict[str, str]] = {}
-        media = MEDIA_RE.search(text)
-        if media:
-            try:
-                overrides[f"prefers-color-scheme:{media.group(1).lower()}"] = (
-                    tokens(block(text, MEDIA_RE_BRACE)))
-            except BlockNotFound as exc:
-                out.append(f"{rel(path)}: could not read the "
-                           f"prefers-color-scheme block ({exc}).")
-        for name in ("light", "dark"):
-            try:
-                overrides[f'data-theme="{name}"'] = tokens(
-                    block(text, re.compile(THEME_RE.format(name=name))))
-            except BlockNotFound:
-                pass
-
+        overrides = blocks.overrides()
         if not overrides:
             continue
 
-        for key, value in sorted(base.items()):
+        for key, value in sorted(blocks.base.items()):
             if not COLOUR_RE.match(value) or key in THEME_INVARIANT:
                 continue
             absent = [where for where, toks in overrides.items() if key not in toks]
@@ -463,6 +446,63 @@ def has_theming(text: str) -> bool:
         re.search(THEME_RE.format(name=n), text) for n in ("light", "dark"))
 
 
+class ThemeBlocks:
+    """Every theme block in one document, read once.
+
+    Finding 2 on #42: check_theme_parity and check_every_colour_themes each
+    re-derived the base :root, the media block and the two data-theme blocks,
+    with their own try/except wording around each. The mutual-deferral bug that
+    round 6 found came from exactly that shape - one function's error handling
+    silently depending on the other's, under a combination neither covered.
+    Fixing the one combination while leaving the duplication in place invites
+    the next one, so the reading happens once and both checks consume it.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.text = read(path)
+        self.errors: list[str] = []
+        self.themes = has_theming(self.text)
+
+        self.base = self._read(BASE_ROOT_RE, "the base :root", outside_media=True)
+        m = MEDIA_RE.search(self.text)
+        self.media_name = m.group(1).lower() if m else None
+        self.media = (self._read(MEDIA_RE_BRACE,
+                                 f"the prefers-color-scheme:{self.media_name} block")
+                      if m else None)
+        self.themed = {
+            name: self._read(re.compile(THEME_RE.format(name=name)),
+                             f'the data-theme="{name}" block', quiet=True)
+            for name in ("light", "dark")
+        }
+
+    def _read(self, pattern, what: str, *, outside_media: bool = False,
+              quiet: bool = False) -> dict[str, str] | None:
+        try:
+            return tokens(block(self.text, pattern, outside_media=outside_media))
+        except BlockNotFound as exc:
+            # `quiet` covers the blocks a document may legitimately not have.
+            # Everything else is reported as a failure OF THIS CHECK, in those
+            # words, because an unreadable block used to surface as a page of
+            # invented colour mismatches.
+            if not quiet and self.themes:
+                self.errors.append(
+                    f"{rel(self.path)}: this document themes, but {what} could "
+                    f"not be read ({exc}). This is a failure of this check, "
+                    "not a colour mismatch.")
+            return None
+
+    def overrides(self) -> dict[str, dict[str, str]]:
+        """The readable override blocks, labelled as a reader would name them."""
+        out = {}
+        if self.media is not None:
+            out[f"prefers-color-scheme:{self.media_name}"] = self.media
+        for name, toks in self.themed.items():
+            if toks is not None:
+                out[f'data-theme="{name}"'] = toks
+        return out
+
+
 def check_theme_parity() -> list[str]:
     """The two ways of reaching a theme must agree.
 
@@ -479,45 +519,28 @@ def check_theme_parity() -> list[str]:
     """
     out = []
     for path in html_files():
-        text = read(path)
-        themed = {}
-        for name in ("light", "dark"):
-            pattern = re.compile(THEME_RE.format(name=name))
-            try:
-                themed[name] = tokens(block(text, pattern))
-            except BlockNotFound:
-                themed[name] = None
+        blocks = ThemeBlocks(path)
+        # Errors are reported by check_every_colour_themes, which reads the same
+        # blocks. Not repeated here - but note this is a claim about a shared
+        # object, not two functions promising each other something. If that
+        # function is ever removed, this needs its own `out += blocks.errors`.
+        if not any(v for v in blocks.themed.values()):
+            continue  # no theme toggle; nothing can disagree
 
-        if not any(v for v in themed.values()):
-            continue  # a document with no theme toggle has nothing to disagree
-
-        media = MEDIA_RE.search(text)
-        if media is None:
+        if blocks.media_name is None:
             out.append(f"{rel(path)}: has data-theme blocks but no "
                        "prefers-color-scheme query; the OS preference is ignored")
             continue
-        media_name = media.group(1).lower()
+        media_name = blocks.media_name
         other = "dark" if media_name == "light" else "light"
 
-        try:
-            media_tokens = tokens(block(text, MEDIA_RE_BRACE))
-        except BlockNotFound as exc:
-            out.append(f"{rel(path)}: could not read the "
-                       f"prefers-color-scheme:{media_name} block ({exc}). "
-                       "This is a failure of this check, not a colour mismatch.")
-            continue
-
-        for name in (media_name, other):
-            if themed.get(name) is None:
-                out.append(f"{rel(path)}: could not read the "
-                           f'data-theme="{name}" block. This is a failure of '
-                           "this check, not a colour mismatch.")
-        if themed.get(media_name) is None or themed.get(other) is None:
-            continue
+        if blocks.media is None or blocks.themed.get(media_name) is None \
+                or blocks.themed.get(other) is None or blocks.base is None:
+            continue  # unreadable; already reported as this check's own failure
 
         # 1. media(T) and [data-theme=T] are the same theme, reached two ways.
-        for key in sorted(set(media_tokens) | set(themed[media_name])):
-            a, b = media_tokens.get(key), themed[media_name].get(key)
+        for key in sorted(set(blocks.media) | set(blocks.themed[media_name])):
+            a, b = blocks.media.get(key), blocks.themed[media_name].get(key)
             if a != b:
                 out.append(
                     f"{rel(path)}: {key} is {a!r} under "
@@ -528,15 +551,8 @@ def check_theme_parity() -> list[str]:
         # 2. The base :root carries the other theme; [data-theme=other] must
         #    restate it exactly. Only tokens the theme block names are compared,
         #    because :root also holds type and layout tokens that are not themed.
-        try:
-            base = tokens(block(text, BASE_ROOT_RE, outside_media=True))
-        except BlockNotFound as exc:
-            out.append(f"{rel(path)}: could not read the base :root block "
-                       f"({exc}). This is a failure of this check, not a "
-                       "colour mismatch.")
-            continue
-        for key, want in sorted(themed[other].items()):
-            got = base.get(key)
+        for key, want in sorted(blocks.themed[other].items()):
+            got = blocks.base.get(key)
             if got != want:
                 out.append(
                     f"{rel(path)}: {key} is {got!r} in the base :root but "
@@ -574,8 +590,18 @@ def main() -> int:
             print(f"  {line}")
         return 1
 
+    # Derived, not asserted. The previous version printed "one shared widget"
+    # unconditionally on success, while check_shared_widget only requires that
+    # there be no MORE than one - so three documents with no scripts at all
+    # would have reported a widget that does not exist. A success line is a
+    # claim like any other.
+    n_widgets = len({body for path in files
+                     for attrs, body in SCRIPT_RE.findall(read(path))
+                     if body.strip() and "src=" not in attrs.lower()})
+    widget = ("no inline widget" if n_widgets == 0
+              else f"{n_widgets} shared widget")
     print(f"docs artifact test: {len(files)} documents parse whole, "
-          "one shared widget, every colour themes, both routes agree")
+          f"{widget}, every colour themes, both routes agree")
     return 0
 
 
