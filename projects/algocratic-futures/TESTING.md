@@ -65,13 +65,26 @@ the gate itself and could not be seen until the third cleared.
 
 Separately, and not in that series:
 
-5. **`agent_tier_tests.yml` filters on paths that do not exist.** Its `paths:` are
+5. **`agent_tier_tests.yml` filtered on paths that do not exist.** Its `paths:` were
    `agent_prompts_tiered.py`, `test_agent_tiers.py`, `agent_system.py` — matched
    from the repository root. These files are at
-   `projects/algocratic-futures/backend/`. The filter never matches, so the
-   workflow never triggers. It would also fail if it did: it runs
+   `projects/algocratic-futures/backend/`. The filter never matched, so the
+   workflow never triggered. It would also have failed if it did: it ran
    `pip install -r requirements.txt` with no working directory, and there is no
    requirements file at the repository root.
+
+   **Removed 2026-07-31.** Confirmed against the Actions API first: `total_count:
+   0`, no run in its entire lifetime. Nothing was lost by deleting it, including
+   its 3.9/3.10/3.11 matrix — a matrix leg that never executed provides no
+   coverage to lose. `test_agent_tiers.py` is now run by the gate above and by
+   `checks.yml`, which is real coverage rather than the appearance of it.
+
+   Worth separating from the four obstacles above, because it fails differently.
+   Those four **failed**, and a failure is visible. This one never fired, and a
+   workflow that never fires shows up as a clean checks list — indistinguishable
+   on the pull request page from one that ran and passed. Kevin recorded it as
+   Finding 4 in `artifacts/forensics/2026-07-30-walking-the-beat.md` a day before
+   it was acted on.
 
 **Now wired, and it runs.** As of 2026-07-31 `deploy.yml` runs
 `test_agent_tiers.py` and `test_liza_flash_compatibility.py` as scripts on

@@ -8,10 +8,11 @@
 #
 # That is the failure this repository has been documenting all along: a check
 # that exists, looks like coverage, and never executes. `agent_tier_tests.yml`
-# filters on paths that do not exist. `deploy.yml` spent a year at a path
-# Actions does not read. `ai-code-review.yml` reported success for a year
-# without producing a review. This file is the same defect, caught in our own
-# hands rather than in the archive.
+# filtered on paths that do not exist and was deleted on 2026-07-31 having
+# never triggered once. `deploy.yml` spent a year at a path Actions does not
+# read. `ai-code-review.yml` reported success for a year without producing a
+# review. This file is the same defect, caught in our own hands rather than in
+# the archive.
 #
 # Deliberately separate from `deploy.yml`. That workflow carries an unresolved
 # question about what the backend gate is; these two checks are settled and
