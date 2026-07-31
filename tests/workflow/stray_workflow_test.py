@@ -23,13 +23,51 @@ Standard library plus git.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-PATHSPEC = "*/.github/workflows/*"
+REPO = Path(__file__).resolve().parents[2]
+CHECKS = REPO / ".github/workflows/checks.yml"
+
+
+def read_utf8(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def pathspec() -> str:
+    """The pathspec the guard actually runs, read from the workflow.
+
+    Not a copy. An earlier version of this file held its own constant, which
+    meant an edit to checks.yml - a typo, a refactor to `**`, adding `:(glob)`
+    magic - would leave this test passing against stale text while the live
+    guard silently degraded. That is the exact failure this guard exists to
+    prevent, committed one directory over from the guard itself.
+    """
+    text = read_utf8(CHECKS)
+    block = re.search(
+        r"# STRAY_PATHSPEC_START\b(.*?)# STRAY_PATHSPEC_END", text, re.S
+    )
+    if not block:
+        raise SystemExit(
+            "no STRAY_PATHSPEC_START/END markers in "
+            f"{CHECKS.relative_to(REPO)}.\n"
+            "They delimit the pathspec this test exercises. If the guard moved, "
+            "move the markers with it - do not delete this test."
+        )
+    assignment = re.search(r"STRAY_PATHSPEC='(.*?)'", block.group(1), re.S)
+    if not assignment:
+        raise SystemExit(
+            "found the markers but no STRAY_PATHSPEC='...' assignment between "
+            "them. This test exercises whatever that variable holds."
+        )
+    return assignment.group(1)
+
+
+PATHSPEC = pathspec()
 
 # (files to create and track, expected matches for PATHSPEC, what it pins down)
 CASES: list[tuple[list[str], list[str], str]] = [
@@ -69,6 +107,16 @@ CASES: list[tuple[list[str], list[str], str]] = [
         "neither a non-workflow .github file nor an unrelated workflows/ directory matches",
     ),
 ]
+
+# Scope, stated so the cases above are not read as more than they are. This
+# guard is about directory *depth*. A file at .github/workflows-old/ or
+# .Github/workflows/ is out of its scope by design, and there is no case here
+# asserting otherwise.
+
+# The fixtures only `add` and `ls-files`, never `commit`, so no
+# `git config user.*` is needed. Anything copied from here that does commit
+# will need it, or it fails in a clean container with "please tell me who you
+# are".
 
 
 def git(*args: str, cwd: Path) -> str:

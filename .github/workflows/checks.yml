@@ -67,10 +67,31 @@ jobs:
       #
       # Both were found by reading history. This finds the next one on the
       # commit that adds it.
+      #
+      # SCOPE, so nobody later mistakes this for more than it is: this checks
+      # directory *depth*, not workflow hygiene generally. A file at
+      # .github/workflows-old/ or .Github/workflows/ is not flagged. The threat
+      # it closes is "Actions will read this the moment someone moves it",
+      # which is a question about where the file sits, not what it contains.
+      #
+      # Placed before the test steps deliberately. A stray workflow is a
+      # higher-severity finding than a failing unit test, and seeing it first
+      # is worth losing the downstream feedback in that run.
       - name: Fail on workflow files outside the repository root
         run: |
           set -euo pipefail
-          stray=$(git ls-files '*/.github/workflows/*')
+
+          # STRAY_PATHSPEC_START
+          # tests/workflow/stray_workflow_test.py reads the pathspec from
+          # between these markers and exercises it against a real repository.
+          # It reads the live value rather than holding a copy, because a test
+          # with its own stale copy passes while the guard it protects
+          # degrades - which is the failure this whole step exists to prevent,
+          # committed one directory over.
+          STRAY_PATHSPEC='*/.github/workflows/*'
+          # STRAY_PATHSPEC_END
+
+          stray=$(git ls-files "$STRAY_PATHSPEC")
           if [ -n "$stray" ]; then
             echo "::error::Workflow files tracked outside .github/workflows/ at the root."
             echo "$stray"
