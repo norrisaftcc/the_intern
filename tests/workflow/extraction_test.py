@@ -111,7 +111,26 @@ def extraction_program() -> str:
             "found the markers but no EXTRACTION='...' assignment between "
             "them. This test runs whatever that variable holds."
         )
-    return assignment.group(1)
+    program = assignment.group(1)
+
+    # The non-greedy capture stops at the first `'`. Bash cannot hold a literal
+    # apostrophe inside a single-quoted string, so that is safe today - but if
+    # the assignment ever becomes a heredoc or double-quoted, this would
+    # capture a truncated program and every case below would be asserting
+    # against a fragment. A fragment of a jq filter is usually not valid jq, so
+    # compile it and refuse to continue rather than test the wrong thing.
+    check = subprocess.run(
+        ["jq", "-n", program], capture_output=True, text=True, input=""
+    )
+    if check.returncode != 0 and "compile error" in check.stderr:
+        raise SystemExit(
+            "the program captured between the markers does not compile:\n"
+            f"  {program!r}\n"
+            f"  {check.stderr.strip()}\n"
+            "This usually means the capture was truncated. If the assignment "
+            "changed shape, update extraction_program() to match."
+        )
+    return program
 
 
 def run_case(program: str, body: dict, tmp: Path) -> tuple[int, str]:

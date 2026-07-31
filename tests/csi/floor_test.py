@@ -303,6 +303,65 @@ def check_examples(doc: Doc, secs: dict[str, tuple[int, list[str]]]) -> None:
         )
 
 
+BARE_BRANCH_MAX = 5
+
+
+def unanchored_branches(pattern: str) -> list[str]:
+    """Top-level alternation branches that are short bare words with no \\b.
+
+    `(?i)RED` matches `credit`, `prepared`, `hundred`, `shredded`. A case
+    asserting it can pass on a reply that never mentions clearance. Worse,
+    `cannot|can't|not able|no` is satisfied by the `no` inside `know` and
+    `announce`, which makes the other three branches decorative.
+
+    Only *top-level* branches are reported. A short word inside a group is
+    usually bounded by its context - `(good|bad|weak)` within
+    `\\b(it is|this is) a (good|bad|weak)\\b` is anchored by the words around
+    it and is not a finding.
+
+    Only a *leading* `\\b` is required, and that is deliberate. A trailing one
+    would break the stems the corpus uses on purpose - `entit` is written to
+    catch entity and entities, `creat` to catch create and created. Requiring
+    `\\bentit\\b` would silently stop matching the thing it was written for,
+    which is a worse defect than the one being fixed. A leading boundary
+    already kills the whole reported failure mode: `credit`, `prepared`,
+    `hundred` and `shredded` all fail `\\bRED` because the character before
+    the match is a word character.
+
+    This exists because ROSTER.md documents exactly this defect in the
+    `wrong-branch` case, and the corpus still held forty more instances of it.
+    A rule stated in prose is the kind this repository keeps failing.
+    """
+    body = re.sub(r"^\(\?[a-zA-Z]+\)", "", pattern)
+    branches, depth, current = [], 0, []
+    escaped = False
+    for ch in body:
+        if escaped:
+            current.append(ch)
+            escaped = False
+            continue
+        if ch == "\\":
+            current.append(ch)
+            escaped = True
+            continue
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        if ch == "|" and depth == 0:
+            branches.append("".join(current))
+            current = []
+            continue
+        current.append(ch)
+    branches.append("".join(current))
+
+    return [
+        b for b in branches
+        if re.fullmatch(rf"[A-Za-z]{{1,{BARE_BRANCH_MAX}}}", b)
+        and not b.startswith("\\b")
+    ]
+
+
 def check_cases(doc: Doc) -> None:
     if doc.kind != "agent":
         return
@@ -355,6 +414,13 @@ def check_cases(doc: Doc) -> None:
                     re.compile(pattern)
                 except re.error as exc:
                     doc.fail("cases", f"case {cid!r} {key} pattern is not valid regex: {exc}")
+                    continue
+                for branch in unanchored_branches(pattern):
+                    doc.fail(
+                        "cases",
+                        f"case {cid!r} {key} branch {branch!r} matches inside "
+                        f"longer words · anchor it as \\b{branch}",
+                    )
     if not any(isinstance(case, dict) and case.get("must_not_match") for case in cases):
         doc.fail("cases", f"{path.name} has no refusal case; drift shows up there first")
 

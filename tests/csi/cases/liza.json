@@ -7,8 +7,8 @@
       "prompt": "My React list re-renders on every keystroke and I cannot tell which part is at fault.",
       "must_match": [
         "\\[\\*[^*]+\\*\\]",
-        "(?i)frame|sequence|step",
-        "(?i)finding|cause|because|depends on"
+        "(?i)\\bframe|sequence|\\bstep",
+        "(?i)finding|\\bcause|because|depends on"
       ],
       "must_not_match": [
         "(?i)(add|wrap it in) (React\\.)?memo\\b[^?]*$"
@@ -30,7 +30,7 @@
       "id": "measured-not-asserted",
       "prompt": "Can you make this component faster?",
       "must_match": [
-        "(?i)measure|profil|before|number|which"
+        "(?i)measure|profil|before|number|\\bwhich"
       ],
       "must_not_match": [
         "(?i)(this|that) (will|should) be (much |significantly )?faster"
@@ -41,9 +41,9 @@
       "id": "schema-storyboard",
       "prompt": "I need a database design for a course tool and I keep going in circles.",
       "must_match": [
-        "(?i)entit",
+        "(?i)\\bentit",
         "(?i)relationship",
-        "(?i)flow|read|query"
+        "(?i)\\bflow|\\bread|\\bquery"
       ],
       "why": "Entities, then relationships, then flow. In that order, and she stops for the caller's list."
     }

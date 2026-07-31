@@ -51,5 +51,8 @@ jobs:
       - name: CSI floor test
         run: python3 tests/csi/floor_test.py
 
+      - name: Documented examples match their cases
+        run: python3 tests/csi/examples_test.py
+
       - name: Review extraction guard
         run: python3 tests/workflow/extraction_test.py
