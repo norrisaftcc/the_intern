@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+"""Kevin's write scope, enforced by the harness rather than by his prompt.
+
+`docs/csi/ROSTER.md` states the principle: limits are structural where they can
+be. VITA has no Write tool, so "never write a student's code" is a fact about
+the tool list rather than a promise in a prompt.
+
+Kevin did not meet it. He is the roster's *control* — the agent that says when
+the others are wrong — and his path limit was one sentence he could be talked
+out of. He was reconstructed from a workflow that reported success for a year
+while producing nothing, which makes an advisory boundary on him the same shape
+as the defect he exists to find.
+
+`.claude/hooks/kevin-forensics-only.py` is the enforcement. This exercises the
+real script, including the paths where it must refuse rather than guess.
+
+    python3 tests/workflow/kevin_scope_test.py
+
+Standard library only.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+HOOK = REPO / ".claude/hooks/kevin-forensics-only.py"
+SETTINGS = REPO / ".claude/settings.json"
+KEVIN = REPO / ".claude/agents/kevin.md"
+
+# Tools that can put bytes on disk through a path argument. If Kevin ever
+# gains one of these, the hook's matcher must already cover it.
+WRITE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+
+# (payload, expect_denied, what it pins down)
+CASES: list[tuple[dict, bool, str]] = [
+    # Every case carries tool_name, because every real payload does — the live
+    # dispatch that confirmed agent_type showed it on both calls. An earlier
+    # version of this list omitted it, which meant the fixtures were exercising
+    # a payload shape the harness never sends.
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/2026-07-31-a-case.md"}},
+     False, "his own directory is where he works"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "{repo}/artifacts/forensics/absolute.md"}},
+     False, "an absolute path into that directory is the same place"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/nested/deeper.md"}},
+     False, "a subdirectory of it is still it"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Edit",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "the roster is not his to edit"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/casefiles/kai.md"}},
+     True, "Kai's case files are hers; same unit, different job, separate paths"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "/etc/passwd"}},
+     True, "nor anything outside the repository"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/../../docs/sneak.md"}},
+     True, "traversal out of the directory is not a way back in"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics-notes/x.md"}},
+     True, "a directory that merely starts with the allowed name is not it"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "NotebookEdit",
+      "tool_input": {"notebook_path": "notebooks/scratch.ipynb"}},
+     True, "NotebookEdit names its path differently and is still covered"),
+
+    # --- fails closed, not open ---
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Write", "tool_input": {}},
+     True, "a call naming no path is refused, not waved through"),
+
+    ({"agent_type": "kevin", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/x.md"}},
+     True, "no cwd means the allowed directory cannot be located - refuse"),
+
+    ({"agent_type": "kevin", "cwd": "relative/nonsense", "tool_name": "Write",
+      "tool_input": {"file_path": "artifacts/forensics/x.md"}},
+     True, "a non-absolute cwd is not something to guess from"),
+
+    ({"agent_type": "kevin", "cwd": "{repo}",
+      "tool_input": {"file_path": "artifacts/forensics/x.md"}},
+     True, "an absent tool_name is refused too - exempting it would leave the "
+           "settings.json matcher as the only gate"),
+
+    # Isolates the tool_name gate: the path is ALLOWED, so the only thing that
+    # can refuse this is the unrecognised tool.
+    ({"agent_type": "kevin", "cwd": "{repo}", "tool_name": "Bash",
+      "tool_input": {"file_path": "artifacts/forensics/allowed.md"}},
+     True, "an unrecognised tool is refused even with an allowed path"),
+
+    # --- still him ---
+    ({"agent_type": "Kevin", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "a differently-cased agent_type is still him"),
+
+    ({"agent_type": " kevin ", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "surrounding whitespace does not let him out"),
+
+    ({"agent_type": "kevin\u200b", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     True, "a zero-width space does not let him out either - the one field the "
+           "whole model trusts is normalised before comparison"),
+
+    # --- and open for everyone else ---
+    ({"agent_type": "general-purpose", "cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     False, "another agent's writes are not this hook's business"),
+
+    ({"cwd": "{repo}", "tool_name": "Write",
+      "tool_input": {"file_path": "docs/csi/ROSTER.md"}},
+     False, "the main thread carries no agent_type and is never held"),
+]
+
+
+def read_utf8(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def fill(obj):
+    if isinstance(obj, dict):
+        return {k: fill(v) for k, v in obj.items()}
+    if isinstance(obj, str):
+        return obj.replace("{repo}", str(REPO))
+    return obj
+
+
+def decision(payload: dict) -> str:
+    proc = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=json.dumps(fill(payload)),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return f"error(exit {proc.returncode}): {proc.stderr.strip()[:120]}"
+    try:
+        out = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return f"unparseable: {proc.stdout.strip()[:120]}"
+    return out.get("hookSpecificOutput", {}).get("permissionDecision", "allow")
+
+
+def check_unparseable_payload() -> list[str]:
+    """Garbage on stdin must deny, not allow.
+
+    Unattributable input cannot be shown to be someone other than Kevin.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(HOOK)], input="{not json", capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        return [f"unparseable payload made the hook exit {proc.returncode}; "
+                "an erroring hook blocks every write in the repository"]
+    try:
+        out = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError:
+        return ["unparseable payload produced unparseable output"]
+    if out.get("hookSpecificOutput", {}).get("permissionDecision") != "deny":
+        return ["an unparseable payload was allowed; it must fail closed"]
+    return []
+
+
+def check_wiring() -> list[str]:
+    """The hook only matters if settings.json invokes it, for every write tool.
+
+    A correct script nothing calls is the defect this repository keeps finding.
+    """
+    out = []
+    try:
+        settings = json.loads(read_utf8(SETTINGS))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f".claude/settings.json is missing or unparseable: {exc}"]
+
+    entries = settings.get("hooks", {}).get("PreToolUse", [])
+    wired = [e for e in entries
+             if any("kevin-forensics-only" in h.get("command", "")
+                    for h in e.get("hooks", []))]
+    if not wired:
+        return ["no PreToolUse hook in .claude/settings.json invokes "
+                "kevin-forensics-only - the script exists but nothing runs it"]
+
+    matcher = wired[0].get("matcher", "")
+    for tool in WRITE_TOOLS:
+        if not re.search(rf"\b{tool}\b", matcher):
+            out.append(f"the hook's matcher does not cover {tool!r} "
+                       f"(matcher is {matcher!r}); a write through it is unchecked")
+    return out
+
+
+# What Kevin holds today. Pinned rather than inspected for write-capability,
+# because "is this tool write-capable" is not decidable from its name — the
+# previous version tried, guessed at a set of {Update, Patch, Create}, and
+# ended up as a function whose every branch returned no findings. A check that
+# cannot fail is the defect this repository keeps writing.
+#
+# Bash is in this set and is the known gap: `echo x > path` is a write the hook
+# never sees. It is listed here so that removing it, or adding anything beside
+# it, trips this test and forces the coverage question to be asked again.
+KEVIN_TOOLS = {"read", "grep", "glob", "bash", "write"}
+
+TOOLS_RE = re.compile(r"^tools:\s*(.+)$", re.M)
+
+
+def check_kevin_tool_list_is_unchanged() -> list[str]:
+    """Fail if his tool list moves at all.
+
+    The hook covers Write, Edit, MultiEdit and NotebookEdit. Whether that is
+    still sufficient depends entirely on what he holds, so any change to the
+    list is a prompt to re-check rather than something to pass silently.
+    """
+    match = TOOLS_RE.search(read_utf8(KEVIN))
+    if not match:
+        return ["no `tools:` line in .claude/agents/kevin.md, or it is not a "
+                "single-line comma list — this check cannot read it, which is "
+                "a failure rather than a pass"]
+    # Tolerant of formatting: whitespace and case are normalised, so a
+    # cosmetic reflow of the frontmatter does not fail this on substance it
+    # does not have.
+    tools = {t.strip().lower() for t in match.group(1).split(",") if t.strip()}
+    if tools != KEVIN_TOOLS:
+        added = sorted(tools - KEVIN_TOOLS)
+        removed = sorted(KEVIN_TOOLS - tools)
+        return [
+            "kevin's tool list changed; re-check that the hook still covers "
+            f"how he can write. added={added} removed={removed}. "
+            "If the change is intended, update KEVIN_TOOLS here and say in "
+            "ROSTER.md what the hook does and does not now reach."
+        ]
+    return []
+
+
+def main() -> int:
+    if not HOOK.exists():
+        print("kevin scope test: FAILED")
+        print(f"  {HOOK.relative_to(REPO)} is missing.")
+        return 1
+
+    failures = check_wiring()
+    failures += check_unparseable_payload()
+    failures += check_kevin_tool_list_is_unchanged()
+
+    for payload, expect_denied, why in CASES:
+        got = decision(payload)
+        want = "deny" if expect_denied else "allow"
+        if got != want:
+            failures.append(f"{why}\n    {json.dumps(payload)}\n"
+                            f"    expected {want}, got {got}")
+
+    if failures:
+        print("kevin scope test: FAILED")
+        for line in failures:
+            print(f"  {line}")
+        return 1
+
+    print(f"kevin scope test: {len(CASES)} write-scope cases behave, "
+          "fails closed, wiring covers every write tool")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

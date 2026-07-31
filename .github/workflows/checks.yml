@@ -115,3 +115,6 @@ jobs:
 
       - name: Stray-workflow pathspec behaves
         run: python3 tests/workflow/stray_workflow_test.py
+
+      - name: Kevin's write scope is enforced, not promised
+        run: python3 tests/workflow/kevin_scope_test.py
